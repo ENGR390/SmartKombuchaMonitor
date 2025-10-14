@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -48,6 +49,123 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="16dp">
+
+            <!-- SECTION: Account -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="ACCOUNT"
+                android:textAllCaps="true"
+                android:letterSpacing="0.05"
+                android:textSize="12sp"
+                android:textColor="#7A7A7A"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp" />
+
+            <!-- Container -->
+            <LinearLayout
+                android:id="@+id/card_account"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="#FFFFFF"
+                android:elevation="2dp"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/txt_account_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Change User Information"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#1F000000"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"/>
+
+                <!-- Username -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Username"
+                    android:textSize="14sp" />
+
+                <EditText
+                    android:id="@+id/et_username"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:paddingVertical="12dp"
+                    android:hint="Enter username"
+                    android:inputType="textPersonName"
+                    android:autofillHints="username"
+                    android:importantForAutofill="yes"
+                    android:backgroundTint="#BDBDBD"
+                    tools:ignore="HardcodedText" />
+
+                <!-- Email -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Email"
+                    android:textSize="14sp"
+                    android:layout_marginTop="12dp" />
+
+                <EditText
+                    android:id="@+id/et_email"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:paddingVertical="12dp"
+                    android:hint="name@example.com"
+                    android:inputType="textEmailAddress"
+                    android:autofillHints="emailAddress"
+                    android:importantForAutofill="yes"
+                    android:backgroundTint="#BDBDBD"
+                    tools:ignore="HardcodedText" />
+
+
+                <!-- Password -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Password"
+                    android:textSize="14sp"
+                    android:layout_marginTop="12dp" />
+
+                <EditText
+                    android:id="@+id/et_password"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:paddingVertical="12dp"
+                    android:hint="Enter new password"
+                    android:inputType="textPassword"
+                    android:autofillHints="password"
+                    android:importantForAutofill="yes"
+                    android:backgroundTint="#BDBDBD"
+                    tools:ignore="HardcodedText" />
+
+
+                <CheckBox
+                    android:id="@+id/cb_show_password"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Show password"
+                    android:layout_marginTop="6dp" />
+
+                <!-- Save -->
+                <Button
+                    android:id="@+id/btn_save_account"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Save"
+                    android:layout_marginTop="16dp" />
+            </LinearLayout>
 
             <!-- SECTION: Units -->
             <TextView
@@ -128,6 +246,7 @@
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp" />
 
+            <!-- Container -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -178,6 +297,7 @@
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp" />
 
+            <!-- Container -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
