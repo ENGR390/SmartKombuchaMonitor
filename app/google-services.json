@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "404912270223",
+    "firebase_url": "https://kombucha-monitor-default-rtdb.firebaseio.com",
+    "project_id": "kombucha-monitor",
+    "storage_bucket": "kombucha-monitor.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:404912270223:android:078ce68e313a43cecc79fa",
+        "android_client_info": {
+          "package_name": "com.example.kombuchaapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAg1IFaz-1v6wzq3MMX7W6ryMdNtOWjVy8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
