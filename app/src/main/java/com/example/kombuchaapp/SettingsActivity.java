@@ -5,10 +5,13 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.text.method.HideReturnsTransformationMethod;
 import android.text.method.PasswordTransformationMethod;
+import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.SeekBar;
@@ -16,13 +19,20 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import com.example.kombuchaapp.models.UserSettings;
+import com.example.kombuchaapp.repositories.SettingsRepository;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 public class SettingsActivity extends AppCompatActivity {
+
+    private static final String TAG = "SettingsActivity";
 
     // UI Components - Account Section
     private EditText etUsername, etEmail, etPassword;
     private CheckBox cbShowPassword;
     private Button btnSaveAccount;
+    private ProgressBar progressBar;
 
     // UI Components - Units Section
     private RadioGroup groupUnits;
@@ -37,7 +47,12 @@ public class SettingsActivity extends AppCompatActivity {
     private RadioButton optPurple, optGray, optBlue, optGreen;
     private Toolbar toolbar;
 
-    // SharedPreferences for local storage
+    // Backend components
+    private SettingsRepository settingsRepository;
+    private FirebaseAuth firebaseAuth;
+    private UserSettings currentSettings;
+
+    // SharedPreferences for local caching
     private SharedPreferences sharedPreferences;
     private static final String PREFS_NAME = "SettingsPrefs";
     private static final String KEY_TEMP_UNIT = "temp_unit";
@@ -49,7 +64,9 @@ public class SettingsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.settings_activity);
 
-        // Initialize SharedPreferences
+        // Initialize Firebase and Repository
+        firebaseAuth = FirebaseAuth.getInstance();
+        settingsRepository = new SettingsRepository();
         sharedPreferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
         // Initialize views
@@ -58,8 +75,8 @@ public class SettingsActivity extends AppCompatActivity {
         // Set up listeners
         setupListeners();
 
-        // Load saved settings
-        loadSettings();
+        // Load settings from Firebase
+        loadSettingsFromFirebase();
     }
 
     private void initializeViews() {
@@ -67,6 +84,10 @@ public class SettingsActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         ImageButton btnBack = findViewById(R.id.btn_back);
         btnBack.setOnClickListener(v -> finish());
+
+        // Progress bar for loading states
+        progressBar = new ProgressBar(this);
+        progressBar.setVisibility(View.GONE);
 
         // Account Section
         etUsername = findViewById(R.id.et_username);
@@ -100,7 +121,6 @@ public class SettingsActivity extends AppCompatActivity {
             } else {
                 etPassword.setTransformationMethod(PasswordTransformationMethod.getInstance());
             }
-            // Move cursor to end
             etPassword.setSelection(etPassword.getText().length());
         });
 
@@ -110,8 +130,7 @@ public class SettingsActivity extends AppCompatActivity {
         // Temperature Unit Selection
         groupUnits.setOnCheckedChangeListener((group, checkedId) -> {
             String unit = (checkedId == R.id.opt_celsius) ? "celsius" : "fahrenheit";
-            savePreference(KEY_TEMP_UNIT, unit);
-            Toast.makeText(this, "Temperature unit updated", Toast.LENGTH_SHORT).show();
+            updateTemperatureUnit(unit);
         });
 
         // Font Size SeekBar
@@ -123,23 +142,80 @@ public class SettingsActivity extends AppCompatActivity {
 
             @Override
             public void onStartTrackingTouch(SeekBar seekBar) {
-                // To be implemented if needed.
+                // Not needed
             }
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                savePreference(KEY_FONT_SIZE, seekBar.getProgress());
-                Toast.makeText(SettingsActivity.this, "Font size saved", Toast.LENGTH_SHORT).show();
+                updateFontSize(seekBar.getProgress());
             }
         });
 
         // Color Theme Selection
         groupColors.setOnCheckedChangeListener((group, checkedId) -> {
             String colorTheme = getColorThemeFromId(checkedId);
-            savePreference(KEY_THEME_COLOR, colorTheme);
-            applyColorTheme(colorTheme);
-            Toast.makeText(this, "Theme updated", Toast.LENGTH_SHORT).show();
+            updateColorTheme(colorTheme);
         });
+    }
+
+    private void loadSettingsFromFirebase() {
+        FirebaseUser user = firebaseAuth.getCurrentUser();
+        
+        if (user == null) {
+            Toast.makeText(this, "Please sign in to access settings", Toast.LENGTH_LONG).show();
+            loadLocalSettings(); // Fallback to local settings
+            return;
+        }
+
+        showLoading(true);
+        
+        settingsRepository.loadSettings(new SettingsRepository.OnSettingsLoadListener() {
+            @Override
+            public void onSuccess(UserSettings settings) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    currentSettings = settings;
+                    displaySettings(settings);
+                    Log.d(TAG, "Settings loaded from Firebase: " + settings);
+                });
+            }
+
+            @Override
+            public void onFailure(String error) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Log.e(TAG, "Failed to load settings: " + error);
+                    Toast.makeText(SettingsActivity.this, 
+                            "Using local settings. " + error, 
+                            Toast.LENGTH_SHORT).show();
+                    loadLocalSettings(); // Fallback
+                });
+            }
+        });
+    }
+
+    private void displaySettings(UserSettings settings) {
+        // Display account info
+        etUsername.setText(settings.getUsername());
+        etEmail.setText(settings.getEmail());
+
+        // Display temperature unit
+        if ("celsius".equals(settings.getTemperatureUnit())) {
+            optCelsius.setChecked(true);
+        } else {
+            optFahrenheit.setChecked(true);
+        }
+
+        // Display font size
+        seekFont.setProgress(settings.getFontSize());
+        updateFontPreview(settings.getFontSize());
+
+        // Display color theme
+        setColorThemeRadioButton(settings.getThemeColor());
+        applyColorTheme(settings.getThemeColor());
+
+        // Save to local cache
+        cacheSettingsLocally(settings);
     }
 
     private void saveAccountInfo() {
@@ -158,48 +234,179 @@ public class SettingsActivity extends AppCompatActivity {
             return;
         }
 
-        // TODO: Firebase integration will go here
-        // For now, it just show a success message
+        FirebaseUser user = firebaseAuth.getCurrentUser();
+        if (user == null) {
+            Toast.makeText(this, "Please sign in to save account info", Toast.LENGTH_LONG).show();
+            return;
+        }
 
-        Toast.makeText(this, "Account information saved (Firebase integration pending)", Toast.LENGTH_LONG).show();
+        showLoading(true);
 
-        // Clear password field for security
-        etPassword.setText("");
+        // Update username and email in Firestore
+        settingsRepository.updateAccountInfo(username, email, 
+                new SettingsRepository.OnSettingsOperationListener() {
+            @Override
+            public void onSuccess(String message) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(SettingsActivity.this, message, Toast.LENGTH_SHORT).show();
+                    
+                    // Update Firebase Auth email if changed
+                    if (!email.isEmpty() && !email.equals(user.getEmail())) {
+                        updateFirebaseAuthEmail(email);
+                    }
+                    
+                    // Update password if provided
+                    if (!password.isEmpty()) {
+                        updateFirebaseAuthPassword(password);
+                    }
+                    
+                    etPassword.setText(""); // Clear password field
+                });
+            }
+
+            @Override
+            public void onFailure(String error) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(SettingsActivity.this, 
+                            "Failed to save: " + error, 
+                            Toast.LENGTH_LONG).show();
+                });
+            }
+        });
     }
 
-    private boolean isValidEmail(String email) {
-        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches();
+    private void updateTemperatureUnit(String unit) {
+        savePreferenceLocally(KEY_TEMP_UNIT, unit);
+        
+        if (currentSettings != null) {
+            settingsRepository.updateSetting("temperatureUnit", unit, 
+                    new SettingsRepository.OnSettingsOperationListener() {
+                @Override
+                public void onSuccess(String message) {
+                    runOnUiThread(() -> 
+                        Toast.makeText(SettingsActivity.this, 
+                                "Temperature unit updated", 
+                                Toast.LENGTH_SHORT).show()
+                    );
+                }
+
+                @Override
+                public void onFailure(String error) {
+                    Log.e(TAG, "Failed to update temperature unit: " + error);
+                }
+            });
+        }
     }
 
-    private void loadSettings() {
-        // Load temperature unit
+    private void updateFontSize(int fontSize) {
+        savePreferenceLocally(KEY_FONT_SIZE, fontSize);
+        
+        if (currentSettings != null) {
+            settingsRepository.updateSetting("fontSize", fontSize, 
+                    new SettingsRepository.OnSettingsOperationListener() {
+                @Override
+                public void onSuccess(String message) {
+                    runOnUiThread(() -> 
+                        Toast.makeText(SettingsActivity.this, 
+                                "Font size saved", 
+                                Toast.LENGTH_SHORT).show()
+                    );
+                }
+
+                @Override
+                public void onFailure(String error) {
+                    Log.e(TAG, "Failed to update font size: " + error);
+                }
+            });
+        }
+    }
+
+    private void updateColorTheme(String colorTheme) {
+        savePreferenceLocally(KEY_THEME_COLOR, colorTheme);
+        applyColorTheme(colorTheme);
+        
+        if (currentSettings != null) {
+            settingsRepository.updateSetting("themeColor", colorTheme, 
+                    new SettingsRepository.OnSettingsOperationListener() {
+                @Override
+                public void onSuccess(String message) {
+                    runOnUiThread(() -> 
+                        Toast.makeText(SettingsActivity.this, 
+                                "Theme updated", 
+                                Toast.LENGTH_SHORT).show()
+                    );
+                }
+
+                @Override
+                public void onFailure(String error) {
+                    Log.e(TAG, "Failed to update theme: " + error);
+                }
+            });
+        }
+    }
+
+    private void updateFirebaseAuthEmail(String newEmail) {
+        FirebaseUser user = firebaseAuth.getCurrentUser();
+        if (user != null) {
+            user.updateEmail(newEmail)
+                    .addOnSuccessListener(aVoid -> 
+                        Toast.makeText(this, "Email updated in Firebase Auth", 
+                                Toast.LENGTH_SHORT).show()
+                    )
+                    .addOnFailureListener(e -> 
+                        Toast.makeText(this, "Failed to update email: " + e.getMessage(), 
+                                Toast.LENGTH_LONG).show()
+                    );
+        }
+    }
+
+    private void updateFirebaseAuthPassword(String newPassword) {
+        FirebaseUser user = firebaseAuth.getCurrentUser();
+        if (user != null) {
+            user.updatePassword(newPassword)
+                    .addOnSuccessListener(aVoid -> 
+                        Toast.makeText(this, "Password updated successfully", 
+                                Toast.LENGTH_SHORT).show()
+                    )
+                    .addOnFailureListener(e -> 
+                        Toast.makeText(this, "Failed to update password: " + e.getMessage(), 
+                                Toast.LENGTH_LONG).show()
+                    );
+        }
+    }
+
+    private void loadLocalSettings() {
+        // Load from SharedPreferences as fallback
         String tempUnit = sharedPreferences.getString(KEY_TEMP_UNIT, "celsius");
-        if (tempUnit.equals("celsius")) {
+        int fontSize = sharedPreferences.getInt(KEY_FONT_SIZE, 0);
+        String colorTheme = sharedPreferences.getString(KEY_THEME_COLOR, "purple");
+
+        if ("celsius".equals(tempUnit)) {
             optCelsius.setChecked(true);
         } else {
             optFahrenheit.setChecked(true);
         }
 
-        // Load font size
-        int fontSize = sharedPreferences.getInt(KEY_FONT_SIZE, 0);
         seekFont.setProgress(fontSize);
         updateFontPreview(fontSize);
 
-        // Load color theme
-        String colorTheme = sharedPreferences.getString(KEY_THEME_COLOR, "purple");
         setColorThemeRadioButton(colorTheme);
         applyColorTheme(colorTheme);
+    }
 
-        // TODO: Load user information from Firebase when integrated
-        // For now, fields remain empty
+    private void cacheSettingsLocally(UserSettings settings) {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.putString(KEY_TEMP_UNIT, settings.getTemperatureUnit());
+        editor.putInt(KEY_FONT_SIZE, settings.getFontSize());
+        editor.putString(KEY_THEME_COLOR, settings.getThemeColor());
+        editor.apply();
     }
 
     private void updateFontPreview(int progress) {
-        // Base font size is 12sp, max is 67sp (12 + 55)
         float fontSize = 12 + progress;
         txtFontPreview.setTextSize(fontSize);
-
-        // Calculate percentage (100% = 16sp, max ~420%)
         int percentage = (int) ((fontSize / 16.0f) * 100);
         txtFontPreview.setText("Preview • " + percentage + "%");
     }
@@ -252,23 +459,21 @@ public class SettingsActivity extends AppCompatActivity {
         toolbar.setBackgroundColor(color);
     }
 
-    private void savePreference(String key, String value) {
+    private boolean isValidEmail(String email) {
+        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches();
+    }
+
+    private void savePreferenceLocally(String key, String value) {
         sharedPreferences.edit().putString(key, value).apply();
     }
 
-    private void savePreference(String key, int value) {
+    private void savePreferenceLocally(String key, int value) {
         sharedPreferences.edit().putInt(key, value).apply();
     }
 
-    // ===== FIREBASE INTEGRATION METHODS (TO BE IMPLEMENTED) =====
-
-    // This method should update user information in Firebase
-    private void updateUserInfoInFirebase(String username, String email, String password) {
-        // Firebase implementation to update the user info will go here
-    }
-
-    //This method should load user information from Firebase
-    private void loadUserInfoFromFirebase() {
-        // Firebase implementation to load the user info will go here
+    private void showLoading(boolean show) {
+        if (btnSaveAccount != null) {
+            btnSaveAccount.setEnabled(!show);
+        }
     }
 }
