@@ -111,16 +111,23 @@ public class Register extends AppCompatActivity {
                             Toast.makeText(Register.this, "User Created Successfully.", Toast.LENGTH_SHORT).show();
                             userID = fAuth.getCurrentUser().getUid();
 
-                            // Save user data to Firestore
+                            // Save user data to Firestore WITH default settings
                             DocumentReference documentReference = fStore.collection("users").document(userID);
                             Map<String, Object> user = new HashMap<>();
+                            
+                            // Account info (original)
                             user.put("fName", fullName);
                             user.put("email", email);
+                            
+                            // Default settings (NEW - integrated with settings system)
+                            user.put("temperatureUnit", "celsius");
+                            user.put("fontSize", 16);
+                            user.put("themeColor", "purple");
 
                             documentReference.set(user).addOnSuccessListener(new OnSuccessListener<Void>() {
                                 @Override
                                 public void onSuccess(Void aVoid) {
-                                    Log.d(TAG, "User profile created for: " + userID);
+                                    Log.d(TAG, "User profile created with default settings for: " + userID);
                                 }
                             }).addOnFailureListener(new OnFailureListener() {
                                 @Override
