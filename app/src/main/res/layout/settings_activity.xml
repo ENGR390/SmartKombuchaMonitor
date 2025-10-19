@@ -21,7 +21,6 @@
             android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
             app:contentInsetStartWithNavigation="0dp">
 
-            <!-- Left back button -->
             <ImageButton
                 android:id="@+id/btn_back"
                 android:layout_width="48dp"
@@ -43,7 +42,6 @@
                 android:textSize="18sp"/>
         </androidx.appcompat.widget.Toolbar>
 
-        <!-- Content -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -62,7 +60,6 @@
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp" />
 
-            <!-- Container -->
             <LinearLayout
                 android:id="@+id/card_account"
                 android:layout_width="match_parent"
@@ -128,12 +125,32 @@
                     android:backgroundTint="#BDBDBD"
                     tools:ignore="HardcodedText" />
 
-
-                <!-- Password -->
+                <!-- Old Password (NEW) -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Password"
+                    android:text="Current Password"
+                    android:textSize="14sp"
+                    android:layout_marginTop="12dp" />
+
+                <EditText
+                    android:id="@+id/et_old_password"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:paddingVertical="12dp"
+                    android:hint="Enter current password"
+                    android:inputType="textPassword"
+                    android:autofillHints="password"
+                    android:importantForAutofill="yes"
+                    android:backgroundTint="#BDBDBD"
+                    tools:ignore="HardcodedText" />
+
+                <!-- New Password -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="New Password"
                     android:textSize="14sp"
                     android:layout_marginTop="12dp" />
 
@@ -150,15 +167,13 @@
                     android:backgroundTint="#BDBDBD"
                     tools:ignore="HardcodedText" />
 
-
                 <CheckBox
                     android:id="@+id/cb_show_password"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Show password"
+                    android:text="Show passwords"
                     android:layout_marginTop="6dp" />
 
-                <!-- Save -->
                 <Button
                     android:id="@+id/btn_save_account"
                     android:layout_width="match_parent"
@@ -179,7 +194,6 @@
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp" />
 
-            <!-- Container -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -192,7 +206,7 @@
                     android:id="@+id/txt_units_label"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Tempreature Unit"
+                    android:text="Temperature Unit"
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
@@ -203,7 +217,6 @@
                     android:layout_marginTop="12dp"
                     android:layout_marginBottom="12dp"/>
 
-                <!-- Radio row -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -246,7 +259,6 @@
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp" />
 
-            <!-- Container -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -297,7 +309,6 @@
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp" />
 
-            <!-- Container -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -358,7 +369,6 @@
                 </RadioGroup>
             </LinearLayout>
 
-            <!-- Bottom padding so last card isn't cramped -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="24dp"/>
