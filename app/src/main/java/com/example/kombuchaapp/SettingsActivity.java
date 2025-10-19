@@ -34,6 +34,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     private static final String TAG = "SettingsActivity";
 
+    // UI Components
     private EditText etUsername, etEmail, etPassword;
     private CheckBox cbShowPassword;
     private Button btnSaveAccount;
@@ -50,6 +51,7 @@ public class SettingsActivity extends AppCompatActivity {
     private SettingsRepository settingsRepo;
     private UserSettings currentSettings;
 
+    // Local cache
     private SharedPreferences sharedPrefs;
     private static final String PREFS_NAME = "SettingsCache";
 
@@ -63,9 +65,11 @@ public class SettingsActivity extends AppCompatActivity {
         settingsRepo = new SettingsRepository();
         sharedPrefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
+        // Initialize UI
         initViews();
         setupListeners();
 
+        // Load settings
         loadSettings();
     }
 
@@ -135,9 +139,12 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Load settings (username from Firestore, email from Firebase Auth)
+     */
     private void loadSettings() {
         FirebaseUser user = fAuth.getCurrentUser();
-        
+
         if (user == null) {
             Toast.makeText(this, "Please login first", Toast.LENGTH_SHORT).show();
             finish();
@@ -162,9 +169,9 @@ public class SettingsActivity extends AppCompatActivity {
             public void onFailure(String error) {
                 runOnUiThread(() -> {
                     showLoading(false);
-                    Toast.makeText(SettingsActivity.this, 
-                        "Error loading settings: " + error, 
-                        Toast.LENGTH_SHORT).show();
+                    Toast.makeText(SettingsActivity.this,
+                            "Error loading settings: " + error,
+                            Toast.LENGTH_SHORT).show();
                     loadCachedSettings();
                 });
             }
@@ -204,11 +211,13 @@ public class SettingsActivity extends AppCompatActivity {
             return;
         }
 
+        // Validate email format
         if (!TextUtils.isEmpty(email) && !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             etEmail.setError("Invalid email format");
             return;
         }
 
+        // Validate password length
         if (!TextUtils.isEmpty(password) && password.length() < 6) {
             etPassword.setError("Password must be at least 6 characters");
             return;
@@ -216,6 +225,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         showLoading(true);
 
+        // Update username in Firestore (ONLY if changed)
         if (!TextUtils.isEmpty(username) && !username.equals(currentSettings.getfName())) {
             settingsRepo.updateUsername(username, new SettingsRepository.OnUpdateListener() {
                 @Override
@@ -229,86 +239,104 @@ public class SettingsActivity extends AppCompatActivity {
                 @Override
                 public void onFailure(String error) {
                     runOnUiThread(() -> {
-                        Toast.makeText(SettingsActivity.this, 
-                            "Failed to update username: " + error, 
-                            Toast.LENGTH_SHORT).show();
+                        Toast.makeText(SettingsActivity.this,
+                                "Failed to update username: " + error,
+                                Toast.LENGTH_SHORT).show();
                     });
                 }
             });
         }
 
+        // Update email in Firebase Auth directly (same pattern as ForgotPassword.java)
         if (!TextUtils.isEmpty(email)) {
             updateFirebaseAuthEmail(email);
         }
 
+        // Update password in Firebase Auth directly (same pattern as ForgotPassword.java)
         if (!TextUtils.isEmpty(password)) {
             updateFirebaseAuthPassword(password);
         }
 
         showLoading(false);
-        etPassword.setText(""); 
+        etPassword.setText(""); // Clear password field
     }
 
+    /**
+     * Update email in Firebase Auth (same as login system)
+     */
     private void updateFirebaseAuthEmail(String newEmail) {
         FirebaseUser user = fAuth.getCurrentUser();
-        
+
         if (user == null) {
             Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
             return;
         }
 
         user.updateEmail(newEmail)
-            .addOnSuccessListener(new OnSuccessListener<Void>() {
-                @Override
-                public void onSuccess(Void aVoid) {
-                    Log.d(TAG, "Email updated in Firebase Auth");
-                    Toast.makeText(SettingsActivity.this, 
-                        "Email updated successfully", 
-                        Toast.LENGTH_SHORT).show();
-                }
-            })
-            .addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    Log.e(TAG, "Failed to update email: " + e.getMessage());
-                    Toast.makeText(SettingsActivity.this, 
-                        "Email update failed: " + e.getMessage(), 
-                        Toast.LENGTH_LONG).show();
-                }
-            });
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d(TAG, "Email updated in Firebase Auth");
+                        Toast.makeText(SettingsActivity.this,
+                                "Email updated successfully",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.e(TAG, "Failed to update email: " + e.getMessage());
+                        Toast.makeText(SettingsActivity.this,
+                                "Email update failed: " + e.getMessage(),
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
     }
 
-
+    /**
+     * Update password in Firebase Auth (same pattern as ForgotPassword.java)
+     * Note: If this fails with "requires recent authentication", user needs to logout and login again
+     */
     private void updateFirebaseAuthPassword(String newPassword) {
         FirebaseUser user = fAuth.getCurrentUser();
-        
+
         if (user == null) {
             Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
             return;
         }
 
         user.updatePassword(newPassword)
-            .addOnSuccessListener(new OnSuccessListener<Void>() {
-                @Override
-                public void onSuccess(Void aVoid) {
-                    Log.d(TAG, "Password updated in Firebase Auth");
-                    Toast.makeText(SettingsActivity.this, 
-                        "Password updated successfully", 
-                        Toast.LENGTH_SHORT).show();
-                }
-            })
-            .addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    Log.e(TAG, "Failed to update password: " + e.getMessage());
-                    Toast.makeText(SettingsActivity.this, 
-                        "Password update failed: " + e.getMessage(), 
-                        Toast.LENGTH_LONG).show();
-                }
-            });
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d(TAG, "Password updated in Firebase Auth");
+                        Toast.makeText(SettingsActivity.this,
+                                "Password updated successfully",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.e(TAG, "Failed to update password: " + e.getMessage());
+
+                        // Handle re-authentication error
+                        if (e.getMessage() != null && e.getMessage().contains("requires recent authentication")) {
+                            Toast.makeText(SettingsActivity.this,
+                                    "Please logout and login again to change your password",
+                                    Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(SettingsActivity.this,
+                                    "Password update failed: " + e.getMessage(),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    }
+                });
     }
 
-
+    /**
+     * Save temperature unit to Firestore
+     */
     private void saveTemperatureUnit(String unit) {
         settingsRepo.updateTemperatureUnit(unit, new SettingsRepository.OnUpdateListener() {
             @Override
@@ -319,14 +347,16 @@ public class SettingsActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(String error) {
-                Toast.makeText(SettingsActivity.this, 
-                    "Failed to save: " + error, 
-                    Toast.LENGTH_SHORT).show();
+                Toast.makeText(SettingsActivity.this,
+                        "Failed to save: " + error,
+                        Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-
+    /**
+     * Save font size to Firestore
+     */
     private void saveFontSize(int fontSize) {
         settingsRepo.updateFontSize(fontSize, new SettingsRepository.OnUpdateListener() {
             @Override
@@ -337,14 +367,16 @@ public class SettingsActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(String error) {
-                Toast.makeText(SettingsActivity.this, 
-                    "Failed to save: " + error, 
-                    Toast.LENGTH_SHORT).show();
+                Toast.makeText(SettingsActivity.this,
+                        "Failed to save: " + error,
+                        Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-
+    /**
+     * Save theme color to Firestore
+     */
     private void saveThemeColor(String color) {
         settingsRepo.updateThemeColor(color, new SettingsRepository.OnUpdateListener() {
             @Override
@@ -356,9 +388,9 @@ public class SettingsActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(String error) {
-                Toast.makeText(SettingsActivity.this, 
-                    "Failed to save: " + error, 
-                    Toast.LENGTH_SHORT).show();
+                Toast.makeText(SettingsActivity.this,
+                        "Failed to save: " + error,
+                        Toast.LENGTH_SHORT).show();
             }
         });
     }
