@@ -115,10 +115,10 @@ public class Register extends AppCompatActivity {
                             // Email and password are stored in Firebase Auth
                             DocumentReference documentReference = fStore.collection("users").document(userID);
                             Map<String, Object> user = new HashMap<>();
-                            
+
                             // Username (for display in app)
                             user.put("fName", fullName);
-                            
+
                             // Default app preferences
                             user.put("temperatureUnit", "celsius");
                             user.put("fontSize", 16);
