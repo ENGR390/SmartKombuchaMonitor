@@ -12,6 +12,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.KombuchaApp">
 
+
+        <activity android:name=".SettingsActivity" />
+
         <activity
             android:name=".CreateANewRecipe"
             android:exported="false" />
@@ -23,6 +26,7 @@
         <activity
             android:name=".ForgotPassword"
             android:exported="true"    />
+
         <activity
             android:name=".MainActivity"
             android:exported="true" />
