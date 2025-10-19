@@ -10,7 +10,11 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import java.util.HashMap;
 import java.util.Map;
 
-
+/**
+ * Settings Repository
+ * Uses Firebase Auth for credentials (email/password) - SAME AS LOGIN SYSTEM
+ * Uses Firestore ONLY for username and app preferences (theme, font, temperature)
+ */
 public class SettingsRepository {
     
     private static final String TAG = "SettingsRepository";
@@ -22,8 +26,7 @@ public class SettingsRepository {
         fAuth = FirebaseAuth.getInstance();
         fStore = FirebaseFirestore.getInstance();
     }
-
- 
+  
     public void getUserSettings(OnSettingsLoadedListener listener) {
         FirebaseUser user = fAuth.getCurrentUser();
         
@@ -34,13 +37,12 @@ public class SettingsRepository {
         
         userID = user.getUid();
         
-
+        // Read username and preferences from Firestore
         DocumentReference docRef = fStore.collection("users").document(userID);
         
         docRef.get().addOnSuccessListener(documentSnapshot -> {
             if (documentSnapshot.exists()) {
-
-                UserSettings settings = parseSettings(documentSnapshot);
+                UserSettings settings = parseSettings(documentSnapshot, user);
                 listener.onSuccess(settings);
                 Log.d(TAG, "Settings loaded: " + settings.toString());
             } else {
@@ -52,14 +54,18 @@ public class SettingsRepository {
         });
     }
 
-
-    private UserSettings parseSettings(DocumentSnapshot doc) {
+    private UserSettings parseSettings(DocumentSnapshot doc, FirebaseUser user) {
         UserSettings settings = new UserSettings();
         
         settings.setUserId(doc.getId());
+        
+        // Get username from Firestore
         settings.setfName(doc.getString("fName") != null ? doc.getString("fName") : "");
-        settings.setEmail(doc.getString("email") != null ? doc.getString("email") : "");
-      
+        
+        // Get email from Firebase Auth
+        settings.setEmail(user.getEmail() != null ? user.getEmail() : "");
+        
+        // Get app preferences from Firestore
         settings.setTemperatureUnit(
             doc.getString("temperatureUnit") != null ? 
             doc.getString("temperatureUnit") : "celsius"
@@ -76,7 +82,8 @@ public class SettingsRepository {
         return settings;
     }
 
-    public void updateAccountInfo(String newName, String newEmail, OnUpdateListener listener) {
+
+    public void updateUsername(String newName, OnUpdateListener listener) {
         FirebaseUser user = fAuth.getCurrentUser();
         
         if (user == null) {
@@ -84,28 +91,18 @@ public class SettingsRepository {
             return;
         }
         
-        userID = user.getUid();
-        DocumentReference docRef = fStore.collection("users").document(userID);
-        
-        Map<String, Object> updates = new HashMap<>();
-        
-        if (newName != null && !newName.trim().isEmpty()) {
-            updates.put("fName", newName);
-        }
-        
-        if (newEmail != null && !newEmail.trim().isEmpty()) {
-            updates.put("email", newEmail);
-        }
-        
-        if (updates.isEmpty()) {
-            listener.onFailure("No data to update");
+        if (newName == null || newName.trim().isEmpty()) {
+            listener.onFailure("Username cannot be empty");
             return;
         }
         
-        docRef.update(updates)
+        userID = user.getUid();
+        DocumentReference docRef = fStore.collection("users").document(userID);
+        
+        docRef.update("fName", newName)
             .addOnSuccessListener(aVoid -> {
-                Log.d(TAG, "Account info updated");
-                listener.onSuccess("Account information updated successfully");
+                Log.d(TAG, "Username updated in Firestore");
+                listener.onSuccess("Username updated successfully");
             })
             .addOnFailureListener(e -> {
                 Log.e(TAG, "Update failed: " + e.getMessage());
@@ -115,21 +112,21 @@ public class SettingsRepository {
 
 
     public void updateTemperatureUnit(String unit, OnUpdateListener listener) {
-        updateSingleField("temperatureUnit", unit, listener);
+        updatePreference("temperatureUnit", unit, listener);
     }
 
-
+ 
     public void updateFontSize(int fontSize, OnUpdateListener listener) {
-        updateSingleField("fontSize", fontSize, listener);
+        updatePreference("fontSize", fontSize, listener);
     }
 
 
     public void updateThemeColor(String color, OnUpdateListener listener) {
-        updateSingleField("themeColor", color, listener);
+        updatePreference("themeColor", color, listener);
     }
 
 
-    private void updateSingleField(String fieldName, Object value, OnUpdateListener listener) {
+    private void updatePreference(String fieldName, Object value, OnUpdateListener listener) {
         FirebaseUser user = fAuth.getCurrentUser();
         
         if (user == null) {
@@ -151,26 +148,7 @@ public class SettingsRepository {
             });
     }
 
-
-    public void initializeDefaultSettings(String userId, OnUpdateListener listener) {
-        Map<String, Object> defaultSettings = new HashMap<>();
-        defaultSettings.put("temperatureUnit", "celsius");
-        defaultSettings.put("fontSize", 16);
-        defaultSettings.put("themeColor", "purple");
-        
-        fStore.collection("users").document(userId)
-            .update(defaultSettings)
-            .addOnSuccessListener(aVoid -> {
-                Log.d(TAG, "Default settings initialized for user: " + userId);
-                listener.onSuccess("Settings initialized");
-            })
-            .addOnFailureListener(e -> {
-                Log.e(TAG, "Failed to initialize settings: " + e.getMessage());
-                listener.onFailure(e.getMessage());
-            });
-    }
-
-
+    // Callback interfaces
     public interface OnSettingsLoadedListener {
         void onSuccess(UserSettings settings);
         void onFailure(String error);
