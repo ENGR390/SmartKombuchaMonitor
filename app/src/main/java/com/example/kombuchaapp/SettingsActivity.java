@@ -19,11 +19,14 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.example.kombuchaapp.models.UserSettings;
 import com.example.kombuchaapp.repositories.SettingsRepository;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -42,9 +45,9 @@ public class SettingsActivity extends AppCompatActivity {
     private Toolbar toolbar;
     private ProgressBar progressBar;
 
-
-    private SettingsRepository settingsRepo;
+    // Backend - Firebase Auth (same as login system)
     private FirebaseAuth fAuth;
+    private SettingsRepository settingsRepo;
     private UserSettings currentSettings;
 
     private SharedPreferences sharedPrefs;
@@ -55,16 +58,14 @@ public class SettingsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.settings_activity);
 
-        // Initialize Firebase (same as login system)
+        // Initialize Firebase Auth (same as Login.java)
         fAuth = FirebaseAuth.getInstance();
         settingsRepo = new SettingsRepository();
         sharedPrefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
-        // Initialize UI
         initViews();
         setupListeners();
 
-        // Load user settings from Firestore
         loadSettings();
     }
 
@@ -97,7 +98,6 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private void setupListeners() {
-
         cbShowPassword.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) {
                 etPassword.setTransformationMethod(HideReturnsTransformationMethod.getInstance());
@@ -107,15 +107,12 @@ public class SettingsActivity extends AppCompatActivity {
             etPassword.setSelection(etPassword.getText().length());
         });
 
-
         btnSaveAccount.setOnClickListener(v -> saveAccountInfo());
-
 
         groupUnits.setOnCheckedChangeListener((group, checkedId) -> {
             String unit = (checkedId == R.id.opt_celsius) ? "celsius" : "fahrenheit";
             saveTemperatureUnit(unit);
         });
-
 
         seekFont.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -132,13 +129,11 @@ public class SettingsActivity extends AppCompatActivity {
             }
         });
 
-
         groupColors.setOnCheckedChangeListener((group, checkedId) -> {
             String color = getColorFromRadioId(checkedId);
             saveThemeColor(color);
         });
     }
-
 
     private void loadSettings() {
         FirebaseUser user = fAuth.getCurrentUser();
@@ -170,18 +165,15 @@ public class SettingsActivity extends AppCompatActivity {
                     Toast.makeText(SettingsActivity.this, 
                         "Error loading settings: " + error, 
                         Toast.LENGTH_SHORT).show();
-                    loadCachedSettings(); // Fallback to local cache
+                    loadCachedSettings();
                 });
             }
         });
     }
 
-
     private void displaySettings(UserSettings settings) {
-
         etUsername.setText(settings.getfName());
         etEmail.setText(settings.getEmail());
-
 
         if ("celsius".equals(settings.getTemperatureUnit())) {
             optCelsius.setChecked(true);
@@ -189,23 +181,25 @@ public class SettingsActivity extends AppCompatActivity {
             optFahrenheit.setChecked(true);
         }
 
-
         seekFont.setProgress(settings.getFontSize());
         updateFontPreview(settings.getFontSize());
 
-   
         setColorRadioButton(settings.getThemeColor());
         applyThemeColor(settings.getThemeColor());
     }
 
- 
+    /**
+     * Save account info
+     * Username → Firestore (via repository)
+     * Email → Firebase Auth directly (same as ForgotPassword.java)
+     * Password → Firebase Auth directly (same as ForgotPassword.java)
+     */
     private void saveAccountInfo() {
-        String name = etUsername.getText().toString().trim();
+        String username = etUsername.getText().toString().trim();
         String email = etEmail.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
 
-
-        if (TextUtils.isEmpty(name) && TextUtils.isEmpty(email) && TextUtils.isEmpty(password)) {
+        if (TextUtils.isEmpty(username) && TextUtils.isEmpty(email) && TextUtils.isEmpty(password)) {
             Toast.makeText(this, "Please enter at least one field to update", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -222,40 +216,96 @@ public class SettingsActivity extends AppCompatActivity {
 
         showLoading(true);
 
-        if (!TextUtils.isEmpty(name) || !TextUtils.isEmpty(email)) {
-            settingsRepo.updateAccountInfo(name, email, new SettingsRepository.OnUpdateListener() {
+        if (!TextUtils.isEmpty(username) && !username.equals(currentSettings.getfName())) {
+            settingsRepo.updateUsername(username, new SettingsRepository.OnUpdateListener() {
                 @Override
                 public void onSuccess(String message) {
                     runOnUiThread(() -> {
                         Toast.makeText(SettingsActivity.this, message, Toast.LENGTH_SHORT).show();
-                        
-                        // Update Firebase Auth email if changed
-                        if (!TextUtils.isEmpty(email)) {
-                            updateFirebaseAuthEmail(email);
-                        }
-                        
-                        showLoading(false);
+                        currentSettings.setfName(username);
                     });
                 }
 
                 @Override
                 public void onFailure(String error) {
                     runOnUiThread(() -> {
-                        showLoading(false);
                         Toast.makeText(SettingsActivity.this, 
-                            "Update failed: " + error, 
+                            "Failed to update username: " + error, 
                             Toast.LENGTH_SHORT).show();
                     });
                 }
             });
         }
 
-        // Update password in Firebase Auth
+        if (!TextUtils.isEmpty(email)) {
+            updateFirebaseAuthEmail(email);
+        }
+
         if (!TextUtils.isEmpty(password)) {
             updateFirebaseAuthPassword(password);
         }
 
+        showLoading(false);
         etPassword.setText(""); 
+    }
+
+    private void updateFirebaseAuthEmail(String newEmail) {
+        FirebaseUser user = fAuth.getCurrentUser();
+        
+        if (user == null) {
+            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        user.updateEmail(newEmail)
+            .addOnSuccessListener(new OnSuccessListener<Void>() {
+                @Override
+                public void onSuccess(Void aVoid) {
+                    Log.d(TAG, "Email updated in Firebase Auth");
+                    Toast.makeText(SettingsActivity.this, 
+                        "Email updated successfully", 
+                        Toast.LENGTH_SHORT).show();
+                }
+            })
+            .addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    Log.e(TAG, "Failed to update email: " + e.getMessage());
+                    Toast.makeText(SettingsActivity.this, 
+                        "Email update failed: " + e.getMessage(), 
+                        Toast.LENGTH_LONG).show();
+                }
+            });
+    }
+
+
+    private void updateFirebaseAuthPassword(String newPassword) {
+        FirebaseUser user = fAuth.getCurrentUser();
+        
+        if (user == null) {
+            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        user.updatePassword(newPassword)
+            .addOnSuccessListener(new OnSuccessListener<Void>() {
+                @Override
+                public void onSuccess(Void aVoid) {
+                    Log.d(TAG, "Password updated in Firebase Auth");
+                    Toast.makeText(SettingsActivity.this, 
+                        "Password updated successfully", 
+                        Toast.LENGTH_SHORT).show();
+                }
+            })
+            .addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    Log.e(TAG, "Failed to update password: " + e.getMessage());
+                    Toast.makeText(SettingsActivity.this, 
+                        "Password update failed: " + e.getMessage(), 
+                        Toast.LENGTH_LONG).show();
+                }
+            });
     }
 
 
@@ -313,42 +363,12 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
-
-    private void updateFirebaseAuthEmail(String newEmail) {
-        FirebaseUser user = fAuth.getCurrentUser();
-        if (user != null) {
-            user.updateEmail(newEmail)
-                .addOnSuccessListener(aVoid -> 
-                    Toast.makeText(this, "Email updated in Firebase Auth", Toast.LENGTH_SHORT).show()
-                )
-                .addOnFailureListener(e -> 
-                    Toast.makeText(this, "Auth email update failed: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                );
-        }
-    }
-
-
-    private void updateFirebaseAuthPassword(String newPassword) {
-        FirebaseUser user = fAuth.getCurrentUser();
-        if (user != null) {
-            user.updatePassword(newPassword)
-                .addOnSuccessListener(aVoid -> 
-                    Toast.makeText(this, "Password updated successfully", Toast.LENGTH_SHORT).show()
-                )
-                .addOnFailureListener(e -> 
-                    Toast.makeText(this, "Password update failed: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                );
-        }
-    }
-
-
     private void updateFontPreview(int progress) {
         float fontSize = 12 + progress;
         txtFontPreview.setTextSize(fontSize);
         int percentage = (int) ((fontSize / 16.0f) * 100);
         txtFontPreview.setText("Preview • " + percentage + "%");
     }
-
 
     private String getColorFromRadioId(int id) {
         if (id == R.id.opt_purple) return "purple";
@@ -357,7 +377,6 @@ public class SettingsActivity extends AppCompatActivity {
         if (id == R.id.opt_green) return "green";
         return "purple";
     }
-
 
     private void setColorRadioButton(String color) {
         switch (color) {
@@ -368,7 +387,6 @@ public class SettingsActivity extends AppCompatActivity {
             default: optPurple.setChecked(true); break;
         }
     }
-
 
     private void applyThemeColor(String color) {
         int colorInt;
@@ -382,7 +400,6 @@ public class SettingsActivity extends AppCompatActivity {
         toolbar.setBackgroundColor(colorInt);
     }
 
-
     private void cacheSettingsLocally(UserSettings settings) {
         SharedPreferences.Editor editor = sharedPrefs.edit();
         editor.putString("fName", settings.getfName());
@@ -393,7 +410,6 @@ public class SettingsActivity extends AppCompatActivity {
         editor.apply();
     }
 
-
     private void cachePreference(String key, Object value) {
         SharedPreferences.Editor editor = sharedPrefs.edit();
         if (value instanceof String) {
@@ -403,7 +419,6 @@ public class SettingsActivity extends AppCompatActivity {
         }
         editor.apply();
     }
-
 
     private void loadCachedSettings() {
         String name = sharedPrefs.getString("fName", "");
