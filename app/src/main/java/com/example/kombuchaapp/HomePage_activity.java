@@ -23,17 +23,14 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.Query;
 
 import java.util.Locale;
 import java.util.Map;
 
 public class HomePage_activity extends AppCompatActivity {
 
-    private static final String DEFAULT_DOC_PATH = "items/demoItem";
-
-    private Toolbar toolbar;
-    private ImageButton btnBack;
-    private TextView toolbarTitle;
+    private static final String DEFAULT_DOC_PATH = "users/demo/Items/demoItem";
 
     private View cardContainer;
     private TextView tvItemName;
@@ -51,9 +48,9 @@ public class HomePage_activity extends AppCompatActivity {
         FirebaseApp.initializeApp(getApplicationContext());
         db = FirebaseFirestore.getInstance();
 
-        toolbar = findViewById(R.id.toolbar);
-        btnBack = findViewById(R.id.btn_back);
-        toolbarTitle = findViewById(R.id.toolbar_title);
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        ImageButton btnBack = findViewById(R.id.btn_back);
+        TextView toolbarTitle = findViewById(R.id.toolbar_title);
         toolbar.setTitle("");
         if (btnBack.getDrawable() == null) {
             btnBack.setImageDrawable(AppCompatResources.getDrawable(
@@ -80,10 +77,62 @@ public class HomePage_activity extends AppCompatActivity {
             cardContainer.setClickable(true);
         }
 
-        String explicitPath = getIntent().getStringExtra("docPath");
-        String resolvedPath = resolveUserDocPath(explicitPath);
+        String explicitDocPath = getIntent().getStringExtra("docPath");
+        String explicitItemId  = getIntent().getStringExtra("itemId");
 
-        registration = db.document(resolvedPath).addSnapshotListener((snapshot, error) -> {
+        if (explicitDocPath != null && !explicitDocPath.trim().isEmpty()) {
+            attachListenerToDoc(explicitDocPath);
+        } else {
+            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+            if (user != null && user.getUid() != null && !user.getUid().isEmpty()) {
+                String uid = user.getUid();
+                if (explicitItemId != null && !explicitItemId.trim().isEmpty()) {
+                    attachListenerToDoc("users/" + uid + "/Items/" + explicitItemId.trim());
+                } else {
+                    db.collection("users").document(uid).collection("Items")
+                            .orderBy("createdAt", Query.Direction.DESCENDING)
+                            .limit(1)
+                            .get()
+                            .addOnCompleteListener(task -> {
+                                if (task.isSuccessful() && task.getResult() != null && !task.getResult().isEmpty()) {
+                                    String docId = task.getResult().getDocuments().get(0).getId();
+                                    attachListenerToDoc("users/" + uid + "/Items/" + docId);
+                                } else {
+                                    db.collection("users").document(uid).collection("Items")
+                                            .limit(1)
+                                            .get()
+                                            .addOnCompleteListener(task2 -> {
+                                                if (task2.isSuccessful() && task2.getResult() != null && !task2.getResult().isEmpty()) {
+                                                    String docId = task2.getResult().getDocuments().get(0).getId();
+                                                    attachListenerToDoc("users/" + uid + "/Items/" + docId);
+                                                } else {
+                                                    attachListenerToDoc(DEFAULT_DOC_PATH);
+                                                }
+                                            });
+                                }
+                            });
+                }
+            } else {
+                attachListenerToDoc(DEFAULT_DOC_PATH);
+            }
+        }
+
+        cardContainer.setOnClickListener(v -> {
+            detailsContainer.setVisibility(
+                    detailsContainer.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE
+            );
+        });
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (registration != null) { registration.remove(); registration = null; }
+    }
+
+    private void attachListenerToDoc(String docPath) {
+        if (registration != null) { registration.remove(); registration = null; }
+        registration = db.document(docPath).addSnapshotListener((snapshot, error) -> {
             if (error != null) {
                 Toast.makeText(this, "Load failed: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                 showEmpty(true);
@@ -96,32 +145,6 @@ public class HomePage_activity extends AppCompatActivity {
             showEmpty(false);
             bindDocument(snapshot);
         });
-
-        cardContainer.setOnClickListener(v -> {
-            if (detailsContainer.getVisibility() == View.VISIBLE) {
-                detailsContainer.setVisibility(View.GONE);
-            } else {
-                detailsContainer.setVisibility(View.VISIBLE);
-            }
-        });
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if (registration != null) {
-            registration.remove();
-            registration = null;
-        }
-    }
-
-    private String resolveUserDocPath(String explicit) {
-        if (explicit != null && !explicit.trim().isEmpty()) return explicit;
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user != null && user.getUid() != null && !user.getUid().isEmpty()) {
-            return "items/" + user.getUid();
-        }
-        return DEFAULT_DOC_PATH;
     }
 
     private void showEmpty(boolean show) {
@@ -130,13 +153,7 @@ public class HomePage_activity extends AppCompatActivity {
     }
 
     private void bindDocument(DocumentSnapshot doc) {
-        String displayName =
-                firstNonEmpty(doc.getString("name"),
-                        doc.getString("title"),
-                        doc.getString("itemName"),
-                        doc.getId());
-        tvItemName.setText(displayName);
-
+        tvItemName.setText(doc.getId()); // show the item name as the document ID
         detailsContainer.removeAllViews();
         Map<String, Object> map = doc.getData();
         if (map == null || map.isEmpty()) {
@@ -145,7 +162,6 @@ public class HomePage_activity extends AppCompatActivity {
         }
         for (Map.Entry<String, Object> e : map.entrySet()) {
             String key = e.getKey();
-            if (equalsAny(key, "name", "title", "itemName")) continue;
             Object val = e.getValue();
             addDetailLine(prettyKey(key), val == null ? "null" : String.valueOf(val));
         }
@@ -181,22 +197,6 @@ public class HomePage_activity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
         dlp.setMargins(0, dp(6), 0, dp(6));
         detailsContainer.addView(divider, dlp);
-    }
-
-    private static String firstNonEmpty(String... xs) {
-        for (String s : xs) {
-            if (s != null) {
-                String t = s.trim();
-                if (!t.isEmpty()) return t;
-            }
-        }
-        return "";
-    }
-
-    private static boolean equalsAny(String s, String... xs) {
-        if (s == null) return false;
-        for (String x : xs) if (s.equals(x)) return true;
-        return false;
     }
 
     private static String prettyKey(String k) {
