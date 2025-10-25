@@ -4,6 +4,7 @@ import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,23 +23,22 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.ListenerRegistration;
-import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QuerySnapshot;
 
 import java.util.Locale;
 import java.util.Map;
 
 public class HomePage_activity extends AppCompatActivity {
 
-    private static final String DEFAULT_DOC_PATH = "users/demo/Recipes/demoRecipe";
+    private static final String TAG = "HomePage_activity";
 
-    private View cardContainer;
-    private TextView tvItemName;
-    private LinearLayout detailsContainer;
-    private View emptyState;
+    private ViewGroup listParent;
+    private View cardTemplate;
 
     private FirebaseFirestore db;
-    private ListenerRegistration registration;
+    private ListenerRegistration recipesListener;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -52,127 +52,151 @@ public class HomePage_activity extends AppCompatActivity {
         ImageButton btnBack = findViewById(R.id.btn_back);
         TextView toolbarTitle = findViewById(R.id.toolbar_title);
         toolbar.setTitle("");
-        if (btnBack.getDrawable() == null) {
-            btnBack.setImageDrawable(AppCompatResources.getDrawable(
-                    this, androidx.appcompat.R.drawable.abc_ic_ab_back_material));
-        }
-        btnBack.setContentDescription("Navigate back");
         btnBack.setOnClickListener(v -> finish());
 
-        cardContainer = findViewById(R.id.item_card);
-        tvItemName = findViewById(R.id.item_name);
-        detailsContainer = findViewById(R.id.details_container);
-        emptyState = findViewById(R.id.empty_container);
+        cardTemplate = findViewById(R.id.item_card);
+        listParent = (ViewGroup) cardTemplate.getParent();
+        cardTemplate.setVisibility(View.GONE);
 
-        GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.WHITE);
-        bg.setCornerRadius(dp(16));
-        bg.setStroke(dp(1), Color.parseColor("#1F000000"));
-        cardContainer.setBackground(bg);
-        TypedValue out = new TypedValue();
-        getTheme().resolveAttribute(android.R.attr.selectableItemBackground, out, true);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            cardContainer.setForeground(AppCompatResources.getDrawable(this, out.resourceId));
-        } else {
-            cardContainer.setClickable(true);
+        FirebaseUser u = FirebaseAuth.getInstance().getCurrentUser();
+        if (u == null || u.getUid() == null || u.getUid().isEmpty()) {
+            Toast.makeText(this, "Not signed in.", Toast.LENGTH_SHORT).show();
+            showStatusCard("Not signed in.");
+            return;
         }
 
-        cardContainer.setOnClickListener(v ->
-                detailsContainer.setVisibility(detailsContainer.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE)
-        );
+        String uid = u.getUid();
+        Log.d(TAG, "uid=" + uid);
 
-        String explicitDocPath = cleanPath(getIntent().getStringExtra("docPath"));
-        String explicitRecipeId = getIntent().getStringExtra("recipeId"); // <— use this extra name now
-
-        if (explicitDocPath != null && !explicitDocPath.isEmpty()) {
-            attachListenerToDoc(explicitDocPath);
-        } else {
-            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-            if (user == null || user.getUid() == null || user.getUid().isEmpty()) {
-                Toast.makeText(this, "Not signed in.", Toast.LENGTH_SHORT).show();
-                attachListenerToDoc(DEFAULT_DOC_PATH);
-                return;
-            }
-            String uid = user.getUid();
-            if (explicitRecipeId != null && !explicitRecipeId.trim().isEmpty()) {
-                attachListenerToDoc("users/" + uid + "/Recipes/" + explicitRecipeId.trim());
-            } else {
-                db.collection("users").document(uid).collection("Recipes")
-                        .orderBy("createdAt", Query.Direction.DESCENDING)
-                        .limit(1)
-                        .get()
-                        .addOnCompleteListener(task -> {
-                            if (task.isSuccessful() && task.getResult() != null && !task.getResult().isEmpty()) {
-                                String docId = task.getResult().getDocuments().get(0).getId();
-                                attachListenerToDoc("users/" + uid + "/Recipes/" + docId);
-                            } else {
-                                db.collection("users").document(uid).collection("Recipes")
-                                        .limit(1)
-                                        .get()
-                                        .addOnCompleteListener(task2 -> {
-                                            if (task2.isSuccessful() && task2.getResult() != null && !task2.getResult().isEmpty()) {
-                                                String docId = task2.getResult().getDocuments().get(0).getId();
-                                                attachListenerToDoc("users/" + uid + "/Recipes/" + docId);
-                                            } else {
-                                                attachListenerToDoc(DEFAULT_DOC_PATH);
-                                            }
-                                        });
-                            }
-                        });
-            }
-        }
+        startRecipesListener(uid);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        if (registration != null) {
-            registration.remove();
-            registration = null;
+        if (recipesListener != null) {
+            recipesListener.remove();
+            recipesListener = null;
         }
     }
 
-    private void attachListenerToDoc(String docPath) {
-        if (registration != null) { registration.remove(); registration = null; }
-        registration = db.document(docPath).addSnapshotListener((snapshot, error) -> {
-            if (error != null) {
-                String msg = error.getMessage() != null ? error.getMessage() : "Unknown error";
-                Toast.makeText(this, "Load failed: " + msg, Toast.LENGTH_LONG).show();
-                showEmpty(true);
-                return;
+    private void startRecipesListener(String uid) {
+        recipesListener = db.collection("users")
+                .document(uid)
+                .collection("Recipes")
+                .addSnapshotListener((QuerySnapshot snaps, FirebaseFirestoreException e) -> {
+                    if (e != null) {
+                        Log.e(TAG, "Firestore error:", e);
+                        showStatusCard("Cannot load recipes:\n" + e.getMessage());
+                        return;
+                    }
+
+                    if (snaps == null) {
+                        Log.d(TAG, "Snapshot null");
+                        showStatusCard("Cannot load recipes.");
+                        return;
+                    }
+
+                    if (snaps.isEmpty()) {
+                        Log.d(TAG, "No recipes for uid " + uid);
+                        showStatusCard("You have 0 recipes.");
+                        return;
+                    }
+
+                    listParent.removeAllViews();
+
+                    for (DocumentSnapshot doc : snaps.getDocuments()) {
+                        String recipeId = doc.getId();
+                        Map<String, Object> fields = doc.getData();
+                        View card = buildRecipeCard(recipeId, fields);
+                        listParent.addView(card, buildListItemLayoutParams());
+                    }
+                });
+    }
+
+    private View buildRecipeCard(String recipeId, Map<String, Object> fields) {
+        LinearLayout card = makeBaseCard();
+
+        TextView title = makeTitleText(recipeId);
+        card.addView(title, matchWrap());
+
+        LinearLayout details = makeDetailsContainer();
+        card.addView(details, matchWrap());
+
+        if (fields == null || fields.isEmpty()) {
+            addDetailLine(details, "No fields", "—");
+        } else {
+            for (Map.Entry<String, Object> e : fields.entrySet()) {
+                String key = prettyKey(e.getKey());
+                String value = (e.getValue() == null) ? "null" : String.valueOf(e.getValue());
+                addDetailLine(details, key, value);
             }
-            if (snapshot == null || !snapshot.exists()) {
-                showEmpty(true);
-                return;
-            }
-            showEmpty(false);
-            bindDocument(snapshot);
+        }
+
+        card.setOnClickListener(v -> {
+            details.setVisibility(details.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
         });
+
+        return card;
     }
 
-    private void showEmpty(boolean show) {
-        emptyState.setVisibility(show ? View.VISIBLE : View.GONE);
-        cardContainer.setVisibility(show ? View.GONE : View.VISIBLE);
-        if (show) detailsContainer.setVisibility(View.GONE);
+    private void showStatusCard(String message) {
+        listParent.removeAllViews();
+
+        LinearLayout statusCard = makeBaseCard();
+
+        TextView title = new TextView(this);
+        title.setText(message);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
+        title.setTextColor(Color.parseColor("#1A1A1A"));
+        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+
+        statusCard.addView(title, matchWrap());
+
+        listParent.addView(statusCard, buildListItemLayoutParams());
     }
 
-    private void bindDocument(DocumentSnapshot doc) {
-        tvItemName.setText(doc.getId());
+    private LinearLayout makeBaseCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        int pad = dp(16);
+        card.setPadding(pad, pad, pad, pad);
 
-        detailsContainer.removeAllViews();
-        Map<String, Object> map = doc.getData();
-        if (map == null || map.isEmpty()) {
-            addDetailLine("No fields", "—");
-            return;
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dp(16));
+        bg.setStroke(dp(1), Color.parseColor("#1F000000"));
+        card.setBackground(bg);
+
+        TypedValue out = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackground, out, true);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            card.setForeground(AppCompatResources.getDrawable(this, out.resourceId));
+        } else {
+            card.setClickable(true);
         }
-        for (Map.Entry<String, Object> e : map.entrySet()) {
-            String key = e.getKey();
-            Object val = e.getValue();
-            addDetailLine(prettyKey(key), val == null ? "null" : String.valueOf(val));
-        }
+
+        return card;
     }
 
-    private void addDetailLine(String key, String value) {
+    private TextView makeTitleText(String titleText) {
+        TextView title = new TextView(this);
+        title.setText(titleText);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
+        title.setTextColor(Color.parseColor("#1A1A1A"));
+        title.setTypeface(title.getTypeface(), android.graphics.Typeface.BOLD);
+        return title;
+    }
+
+    private LinearLayout makeDetailsContainer() {
+        LinearLayout details = new LinearLayout(this);
+        details.setOrientation(LinearLayout.VERTICAL);
+        details.setVisibility(View.GONE);
+        details.setPadding(0, dp(12), 0, 0);
+        return details;
+    }
+
+    private void addDetailLine(LinearLayout container, String key, String value) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.VERTICAL);
         int pad = dp(8);
@@ -188,27 +212,35 @@ public class HomePage_activity extends AppCompatActivity {
         v.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
         v.setTextColor(Color.parseColor("#1A1A1A"));
 
-        row.addView(k, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        row.addView(v, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        row.addView(k, matchWrap());
+        row.addView(v, matchWrap());
 
-        detailsContainer.addView(row, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        container.addView(row, matchWrap());
 
         View divider = new View(this);
         divider.setBackgroundColor(Color.parseColor("#1F000000"));
         LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dp(1)
+        );
         dlp.setMargins(0, dp(6), 0, dp(6));
-        detailsContainer.addView(divider, dlp);
+        container.addView(divider, dlp);
     }
 
-    private static String cleanPath(String p) {
-        if (p == null) return null;
-        String t = p.trim();
-        while (t.startsWith("/")) t = t.substring(1);
-        return t;
+    private LinearLayout.LayoutParams buildListItemLayoutParams() {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        lp.setMargins(dp(4), dp(6), dp(4), dp(6));
+        return lp;
+    }
+
+    private LinearLayout.LayoutParams matchWrap() {
+        return new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
     }
 
     private static String prettyKey(String k) {
@@ -217,5 +249,7 @@ public class HomePage_activity extends AppCompatActivity {
         return t.substring(0, 1).toUpperCase(Locale.getDefault()) + t.substring(1);
     }
 
-    private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
+    private int dp(int v) {
+        return Math.round(v * getResources().getDisplayMetrics().density);
+    }
 }
