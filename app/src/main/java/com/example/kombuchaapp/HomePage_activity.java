@@ -30,7 +30,7 @@ import java.util.Map;
 
 public class HomePage_activity extends AppCompatActivity {
 
-    private static final String DEFAULT_DOC_PATH = "users/demo/Items/demoItem";
+    private static final String DEFAULT_DOC_PATH = "users/demo/Recipes/demoRecipe";
 
     private View cardContainer;
     private TextView tvItemName;
@@ -77,64 +77,67 @@ public class HomePage_activity extends AppCompatActivity {
             cardContainer.setClickable(true);
         }
 
-        String explicitDocPath = getIntent().getStringExtra("docPath");
-        String explicitItemId  = getIntent().getStringExtra("itemId");
+        cardContainer.setOnClickListener(v ->
+                detailsContainer.setVisibility(detailsContainer.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE)
+        );
 
-        if (explicitDocPath != null && !explicitDocPath.trim().isEmpty()) {
+        String explicitDocPath = cleanPath(getIntent().getStringExtra("docPath"));
+        String explicitRecipeId = getIntent().getStringExtra("recipeId"); // <— use this extra name now
+
+        if (explicitDocPath != null && !explicitDocPath.isEmpty()) {
             attachListenerToDoc(explicitDocPath);
         } else {
             FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-            if (user != null && user.getUid() != null && !user.getUid().isEmpty()) {
-                String uid = user.getUid();
-                if (explicitItemId != null && !explicitItemId.trim().isEmpty()) {
-                    attachListenerToDoc("users/" + uid + "/Items/" + explicitItemId.trim());
-                } else {
-                    db.collection("users").document(uid).collection("Items")
-                            .orderBy("createdAt", Query.Direction.DESCENDING)
-                            .limit(1)
-                            .get()
-                            .addOnCompleteListener(task -> {
-                                if (task.isSuccessful() && task.getResult() != null && !task.getResult().isEmpty()) {
-                                    String docId = task.getResult().getDocuments().get(0).getId();
-                                    attachListenerToDoc("users/" + uid + "/Items/" + docId);
-                                } else {
-                                    db.collection("users").document(uid).collection("Items")
-                                            .limit(1)
-                                            .get()
-                                            .addOnCompleteListener(task2 -> {
-                                                if (task2.isSuccessful() && task2.getResult() != null && !task2.getResult().isEmpty()) {
-                                                    String docId = task2.getResult().getDocuments().get(0).getId();
-                                                    attachListenerToDoc("users/" + uid + "/Items/" + docId);
-                                                } else {
-                                                    attachListenerToDoc(DEFAULT_DOC_PATH);
-                                                }
-                                            });
-                                }
-                            });
-                }
-            } else {
+            if (user == null || user.getUid() == null || user.getUid().isEmpty()) {
+                Toast.makeText(this, "Not signed in.", Toast.LENGTH_SHORT).show();
                 attachListenerToDoc(DEFAULT_DOC_PATH);
+                return;
+            }
+            String uid = user.getUid();
+            if (explicitRecipeId != null && !explicitRecipeId.trim().isEmpty()) {
+                attachListenerToDoc("users/" + uid + "/Recipes/" + explicitRecipeId.trim());
+            } else {
+                db.collection("users").document(uid).collection("Recipes")
+                        .orderBy("createdAt", Query.Direction.DESCENDING)
+                        .limit(1)
+                        .get()
+                        .addOnCompleteListener(task -> {
+                            if (task.isSuccessful() && task.getResult() != null && !task.getResult().isEmpty()) {
+                                String docId = task.getResult().getDocuments().get(0).getId();
+                                attachListenerToDoc("users/" + uid + "/Recipes/" + docId);
+                            } else {
+                                db.collection("users").document(uid).collection("Recipes")
+                                        .limit(1)
+                                        .get()
+                                        .addOnCompleteListener(task2 -> {
+                                            if (task2.isSuccessful() && task2.getResult() != null && !task2.getResult().isEmpty()) {
+                                                String docId = task2.getResult().getDocuments().get(0).getId();
+                                                attachListenerToDoc("users/" + uid + "/Recipes/" + docId);
+                                            } else {
+                                                attachListenerToDoc(DEFAULT_DOC_PATH);
+                                            }
+                                        });
+                            }
+                        });
             }
         }
-
-        cardContainer.setOnClickListener(v -> {
-            detailsContainer.setVisibility(
-                    detailsContainer.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE
-            );
-        });
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        if (registration != null) { registration.remove(); registration = null; }
+        if (registration != null) {
+            registration.remove();
+            registration = null;
+        }
     }
 
     private void attachListenerToDoc(String docPath) {
         if (registration != null) { registration.remove(); registration = null; }
         registration = db.document(docPath).addSnapshotListener((snapshot, error) -> {
             if (error != null) {
-                Toast.makeText(this, "Load failed: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                String msg = error.getMessage() != null ? error.getMessage() : "Unknown error";
+                Toast.makeText(this, "Load failed: " + msg, Toast.LENGTH_LONG).show();
                 showEmpty(true);
                 return;
             }
@@ -150,10 +153,12 @@ public class HomePage_activity extends AppCompatActivity {
     private void showEmpty(boolean show) {
         emptyState.setVisibility(show ? View.VISIBLE : View.GONE);
         cardContainer.setVisibility(show ? View.GONE : View.VISIBLE);
+        if (show) detailsContainer.setVisibility(View.GONE);
     }
 
     private void bindDocument(DocumentSnapshot doc) {
-        tvItemName.setText(doc.getId()); // show the item name as the document ID
+        tvItemName.setText(doc.getId());
+
         detailsContainer.removeAllViews();
         Map<String, Object> map = doc.getData();
         if (map == null || map.isEmpty()) {
@@ -197,6 +202,13 @@ public class HomePage_activity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
         dlp.setMargins(0, dp(6), 0, dp(6));
         detailsContainer.addView(divider, dlp);
+    }
+
+    private static String cleanPath(String p) {
+        if (p == null) return null;
+        String t = p.trim();
+        while (t.startsWith("/")) t = t.substring(1);
+        return t;
     }
 
     private static String prettyKey(String k) {

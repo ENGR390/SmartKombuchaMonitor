@@ -19,7 +19,7 @@ public class MainActivity extends AppCompatActivity {
     Button newRecipeButton, settingsButton, logoutButton;
     private FirebaseAnalytics mFirebaseAnalytics;
     private FirebaseAuth fAuth;
-    
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -32,35 +32,32 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        // Initialize Firebase
         mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
         fAuth = FirebaseAuth.getInstance();
 
-        // Get reference to buttons
         Button myButton = findViewById(R.id.my_button);
         newRecipeButton = findViewById(R.id.NewRecipeButton);
         settingsButton = findViewById(R.id.SettingsButton);
         logoutButton = findViewById(R.id.LogoutButton);
 
-        // Analytics test button
         myButton.setOnClickListener(v -> {
             Toast.makeText(this, "Button clicked! Event logged.", Toast.LENGTH_SHORT).show();
             logButtonClickEvent();
+
+            Intent i = new Intent(MainActivity.this, HomePage_activity.class);
+            startActivity(i);
         });
 
-        // New Recipe button
         newRecipeButton.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, CreateANewRecipe.class);
             startActivity(intent);
         });
 
-        // Settings button - NEW
         settingsButton.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
             startActivity(intent);
         });
 
-        // Logout button - NEW
         logoutButton.setOnClickListener(v -> {
             logout();
         });
