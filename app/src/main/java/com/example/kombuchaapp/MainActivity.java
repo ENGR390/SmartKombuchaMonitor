@@ -12,12 +12,14 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.google.firebase.analytics.FirebaseAnalytics;
+import com.google.firebase.auth.FirebaseAuth;
 
 public class MainActivity extends AppCompatActivity {
 
-    Button appButton;
+    Button newRecipeButton, settingsButton, logoutButton;
     private FirebaseAnalytics mFirebaseAnalytics;
-
+    private FirebaseAuth fAuth;
+    
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -30,29 +32,37 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        // Initialize Firebase Analytics
+        // Initialize Firebase
         mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
+        fAuth = FirebaseAuth.getInstance();
 
-        // Get reference to your button
+        // Get reference to buttons
         Button myButton = findViewById(R.id.my_button);
+        newRecipeButton = findViewById(R.id.NewRecipeButton);
+        settingsButton = findViewById(R.id.SettingsButton);
+        logoutButton = findViewById(R.id.LogoutButton);
 
-        // Set click listener
+        // Analytics test button
         myButton.setOnClickListener(v -> {
-            // Visual confirmation
             Toast.makeText(this, "Button clicked! Event logged.", Toast.LENGTH_SHORT).show();
-
-            // Log the button click event
             logButtonClickEvent();
-
-            Intent i = new Intent(MainActivity.this, HomePage_activity.class);
-            startActivity(i);
         });
 
-        // Settings button
-        appButton = findViewById(R.id.NewRecipeButton);
-        appButton.setOnClickListener(v -> {
+        // New Recipe button
+        newRecipeButton.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, CreateANewRecipe.class);
             startActivity(intent);
+        });
+
+        // Settings button - NEW
+        settingsButton.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+            startActivity(intent);
+        });
+
+        // Logout button - NEW
+        logoutButton.setOnClickListener(v -> {
+            logout();
         });
     }
 
@@ -62,5 +72,13 @@ public class MainActivity extends AppCompatActivity {
         params.putString("screen_name", "main_screen");
         Log.d("FirebaseAnalytics", "Logging event: button_clicked");
         mFirebaseAnalytics.logEvent("button_clicked", params);
+    }
+
+    private void logout() {
+        fAuth.signOut();
+        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
+        Intent intent = new Intent(MainActivity.this, Login.class);
+        startActivity(intent);
+        finish();
     }
 }
