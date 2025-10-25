@@ -44,6 +44,26 @@
                 android:layout_gravity="center" />
 
             <TextView
+                android:id="@+id/RecipeNameTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="25dp"
+                android:layout_marginTop="15dp"
+                android:text="Recipe Name:" />
+
+            <EditText
+                android:id="@+id/RecipeNameEditText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
+                android:layout_marginTop="5dp"
+                android:hint="Name of your Recipe"
+                android:inputType="text"
+                android:minHeight="48dp"
+                android:padding="12dp" />
+
+            <TextView
                 android:id="@+id/textView2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -139,7 +159,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="25dp"
                 android:layout_marginTop="15dp"
-                android:text="Kumbucha Starter: " />
+                android:text="Kombucha Starter: " />
 
             <EditText
                 android:id="@+id/kombuchaStarter"

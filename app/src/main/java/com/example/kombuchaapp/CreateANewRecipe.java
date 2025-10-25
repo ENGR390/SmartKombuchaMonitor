@@ -26,7 +26,7 @@ public class CreateANewRecipe extends AppCompatActivity {
     private static final String TAG = "CreateANewRecipe";
 
     // UI Components
-    private EditText etTeaLeaf, etWater, etSugar, etScoby, etKombuchaStarter, etFlavor;
+    private EditText etTeaLeaf, etWater, etSugar, etScoby, etKombuchaStarter, etFlavor, etRecipeName;
     private Button btnSaveRecipe;
     private ProgressBar progressBar;
 
@@ -71,6 +71,7 @@ public class CreateANewRecipe extends AppCompatActivity {
         etFlavor = findViewById(R.id.flavor1);
         btnSaveRecipe = findViewById(R.id.btnSaveRecipe);
         progressBar = findViewById(R.id.progressBar);
+        etRecipeName = findViewById(R.id.RecipeNameEditText);
     }
 
     private void saveRecipe() {
@@ -81,14 +82,12 @@ public class CreateANewRecipe extends AppCompatActivity {
         String scoby = etScoby.getText().toString().trim();
         String kombuchaStarter = etKombuchaStarter.getText().toString().trim();
         String flavor = etFlavor.getText().toString().trim();
+        String recipeName = etRecipeName.getText().toString().trim();
 
         // Validate inputs
         if (!validateInputs(teaLeaf, water, sugar, scoby, kombuchaStarter)) {
             return;
         }
-
-        // Generate recipe name from current date/time
-        String recipeName = "Kombucha Recipe - " + new java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault()).format(new java.util.Date());
 
         // Show loading
         showLoading(true);
