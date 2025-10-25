@@ -51,7 +51,11 @@ public class HomePage_activity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         ImageButton btnBack = findViewById(R.id.btn_back);
         TextView toolbarTitle = findViewById(R.id.toolbar_title);
+
         toolbar.setTitle("");
+
+        btnBack.setImageResource(android.R.drawable.ic_menu_revert);
+
         btnBack.setOnClickListener(v -> finish());
 
         cardTemplate = findViewById(R.id.item_card);
