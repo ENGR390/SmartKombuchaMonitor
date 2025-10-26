@@ -84,13 +84,14 @@ public class AllSensorReadingsActivity extends AppCompatActivity {
 
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         try {
+                            String recipeId = document.getString("recipe_id");
                             String sensorId = document.getString("sensor_id");
                             float tempC = document.getDouble("temperature_c") != null
                                     ? document.getDouble("temperature_c").floatValue() : 0f;
                             float tempF = document.getDouble("temperature_f") != null
                                     ? document.getDouble("temperature_f").floatValue() : 0f;
 
-                            SensorReadings reading = new SensorReadings(sensorId, tempC, tempF);
+                            SensorReadings reading = new SensorReadings(recipeId, sensorId, tempC, tempF);
                             sensorReadingsList.add(reading);
 
                         } catch (Exception e) {
