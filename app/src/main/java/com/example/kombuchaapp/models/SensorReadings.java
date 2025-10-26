@@ -5,14 +5,16 @@ public class SensorReadings {
     private String sensor_id;
     private float temperature_c;
     private float temperature_f;
+    private String timestamp;
 
     public SensorReadings() {}
 
-    public SensorReadings(String recipe_id, String sensor_id, float temperature_c, float temperature_f) {
+    public SensorReadings(String recipe_id, String sensor_id, float temperature_c, float temperature_f, String timestamp) {
         this.recipe_id = recipe_id;
         this.sensor_id = sensor_id;
         this.temperature_c = temperature_c;
         this.temperature_f = temperature_f;
+        this.timestamp = timestamp;
     }
 
     public String getRecipe_id() {
@@ -47,8 +49,16 @@ public class SensorReadings {
         this.temperature_f = temperature_f;
     }
 
+    public String getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(String timestamp) {
+        this.timestamp = timestamp;
+    }
+
     @Override
     public String toString() {
-        return String.format("Sensor: %s\nTemp: %.1f°C / %.1f°F\nRecipe: %s", sensor_id, temperature_c, temperature_f, recipe_id);
+        return String.format("Sensor: %s\nTemp: %.1f°C / %.1f°F\nRecipe: %s\nTimestamp: %s", sensor_id, temperature_c, temperature_f, recipe_id, timestamp);
     }
 }
