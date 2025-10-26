@@ -121,8 +121,29 @@ public class HomePage_activity extends AppCompatActivity {
     private View buildRecipeCard(String recipeId, Map<String, Object> fields) {
         LinearLayout card = makeBaseCard();
 
+        // Title and button container
+        LinearLayout headerRow = new LinearLayout(this);
+        headerRow.setOrientation(LinearLayout.HORIZONTAL);
+        headerRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
         TextView title = makeTitleText(recipeId);
-        card.addView(title, matchWrap());
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1.0f  // weight to take remaining space
+        );
+        headerRow.addView(title, titleParams);
+
+        // Add button using separate method
+        android.widget.Button actionButton = makeActionButton(recipeId);
+        LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        btnParams.setMargins(dp(12), 0, 0, 0);
+
+        headerRow.addView(actionButton, btnParams);
+        card.addView(headerRow, matchWrap());
 
         LinearLayout details = makeDetailsContainer();
         card.addView(details, matchWrap());
@@ -142,6 +163,38 @@ public class HomePage_activity extends AppCompatActivity {
         });
 
         return card;
+    }
+
+    private android.widget.Button makeActionButton(String recipeId) {
+        android.widget.Button button = new android.widget.Button(this);
+        button.setText("GET READINGS");
+        button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        button.setTextColor(Color.WHITE);
+        button.setPadding(dp(16), dp(8), dp(16), dp(8));
+
+        GradientDrawable btnBg = new GradientDrawable();
+        btnBg.setColor(Color.parseColor("#4A148C"));
+        btnBg.setCornerRadius(dp(8));
+        button.setBackground(btnBg);
+
+        // Set click listener
+        button.setOnClickListener(v -> {
+            Toast.makeText(this, "Readings for recipe: " + recipeId, Toast.LENGTH_SHORT).show();
+
+            db.collection("sensor_control")
+                    .document("active_config")
+                    .set(Map.of("current_recipe_id", recipeId))
+                    .addOnSuccessListener(aVoid -> {
+                        Log.d(TAG, "Recipe ID saved successfully");
+                        Toast.makeText(this, "Recipe activated!", Toast.LENGTH_SHORT).show();
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Failed to save recipe ID", e);
+                        Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+        });
+
+        return button;
     }
 
     private void showStatusCard(String message) {
