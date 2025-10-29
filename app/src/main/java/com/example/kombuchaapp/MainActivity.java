@@ -16,7 +16,7 @@ import com.google.firebase.auth.FirebaseAuth;
 
 public class MainActivity extends AppCompatActivity {
 
-    Button newRecipeButton, settingsButton, logoutButton, myRecipesButton, sensorReadingsButton;
+    Button newRecipeButton, settingsButton, logoutButton, sensorReadingsButton;
     private FirebaseAnalytics mFirebaseAnalytics;
     private FirebaseAuth fAuth;
 
@@ -35,19 +35,10 @@ public class MainActivity extends AppCompatActivity {
         mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
         fAuth = FirebaseAuth.getInstance();
 
-        myRecipesButton = findViewById(R.id.myRecipesButton);
         newRecipeButton = findViewById(R.id.NewRecipeButton);
         settingsButton = findViewById(R.id.SettingsButton);
         logoutButton = findViewById(R.id.LogoutButton);
         sensorReadingsButton = findViewById(R.id.sensorReadingsButton);
-
-        myRecipesButton.setOnClickListener(v -> {
-            //Toast.makeText(this, "Button clicked! Event logged.", Toast.LENGTH_SHORT).show();
-            //logButtonClickEvent();
-
-            Intent i = new Intent(MainActivity.this, HomePage_activity.class);
-            startActivity(i);
-        });
 
         newRecipeButton.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, CreateANewRecipe.class);
@@ -64,20 +55,9 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-
         logoutButton.setOnClickListener(v -> {
             logout();
         });
-    }
-
-
-
-    private void logButtonClickEvent() {
-        Bundle params = new Bundle();
-        params.putString("button_name", "my_button");
-        params.putString("screen_name", "main_screen");
-        Log.d("FirebaseAnalytics", "Logging event: button_clicked");
-        mFirebaseAnalytics.logEvent("button_clicked", params);
     }
 
     private void logout() {
