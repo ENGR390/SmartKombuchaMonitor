@@ -11,6 +11,16 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.KombuchaApp">
+
+        <!-- ADD THESE TWO LINES -->
+        <activity
+            android:name=".ViewRecipeActivity"
+            android:exported="false" />
+        <activity
+            android:name=".EditRecipeActivity"
+            android:exported="false" />
+        <!-- END OF NEW ACTIVITIES -->
+
         <activity
             android:name=".AllSensorReadingsActivity"
             android:exported="false" />
@@ -32,7 +42,6 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
