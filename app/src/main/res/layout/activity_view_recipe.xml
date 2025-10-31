@@ -4,16 +4,17 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F5F5">
+    android:background="#FFF5E6">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"
+        android:background="#FF8C00"
         android:minHeight="?attr/actionBarSize"
         android:theme="?attr/actionBarTheme"
         app:title="Recipe Details"
+        app:titleTextColor="#FFFFFF"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -22,6 +23,7 @@
         android:id="@+id/progressBar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:indeterminateTint="#FF8C00"
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@+id/toolbar"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -63,7 +65,7 @@
                         android:text="Recipe Name"
                         android:textSize="24sp"
                         android:textStyle="bold"
-                        android:textColor="#1A1A1A"
+                        android:textColor="#D2691E"
                         android:layout_marginBottom="8dp" />
 
                     <TextView
@@ -90,7 +92,7 @@
                 android:text="FIRST FERMENTATION"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                android:textColor="#757575"
+                android:textColor="#D2691E"
                 android:layout_marginBottom="8dp"
                 android:letterSpacing="0.1" />
 
@@ -113,7 +115,7 @@
                         android:layout_height="wrap_content"
                         android:text="Tea Leaf"
                         android:textSize="12sp"
-                        android:textColor="#757575"
+                        android:textColor="#A0522D"
                         android:textStyle="bold" />
                     <TextView
                         android:id="@+id/tv_tea_leaf"
@@ -121,13 +123,13 @@
                         android:layout_height="wrap_content"
                         android:text="3 Tbs Black Tea"
                         android:textSize="16sp"
-                        android:textColor="#1A1A1A"
+                        android:textColor="#8B4513"
                         android:layout_marginBottom="12dp" />
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:background="#E0E0E0"
+                        android:background="#FFE4B5"
                         android:layout_marginBottom="12dp" />
 
                     <!-- Water -->
@@ -136,7 +138,7 @@
                         android:layout_height="wrap_content"
                         android:text="Water"
                         android:textSize="12sp"
-                        android:textColor="#757575"
+                        android:textColor="#A0522D"
                         android:textStyle="bold" />
                     <TextView
                         android:id="@+id/tv_water"
@@ -144,13 +146,13 @@
                         android:layout_height="wrap_content"
                         android:text="12 cups"
                         android:textSize="16sp"
-                        android:textColor="#1A1A1A"
+                        android:textColor="#8B4513"
                         android:layout_marginBottom="12dp" />
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:background="#E0E0E0"
+                        android:background="#FFE4B5"
                         android:layout_marginBottom="12dp" />
 
                     <!-- Sugar -->
@@ -159,7 +161,7 @@
                         android:layout_height="wrap_content"
                         android:text="Sugar"
                         android:textSize="12sp"
-                        android:textColor="#757575"
+                        android:textColor="#A0522D"
                         android:textStyle="bold" />
                     <TextView
                         android:id="@+id/tv_sugar"
@@ -167,13 +169,13 @@
                         android:layout_height="wrap_content"
                         android:text="3/4 cups"
                         android:textSize="16sp"
-                        android:textColor="#1A1A1A"
+                        android:textColor="#8B4513"
                         android:layout_marginBottom="12dp" />
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:background="#E0E0E0"
+                        android:background="#FFE4B5"
                         android:layout_marginBottom="12dp" />
 
                     <!-- SCOBY -->
@@ -182,7 +184,7 @@
                         android:layout_height="wrap_content"
                         android:text="SCOBY"
                         android:textSize="12sp"
-                        android:textColor="#757575"
+                        android:textColor="#A0522D"
                         android:textStyle="bold" />
                     <TextView
                         android:id="@+id/tv_scoby"
@@ -190,13 +192,13 @@
                         android:layout_height="wrap_content"
                         android:text="1/2 inch"
                         android:textSize="16sp"
-                        android:textColor="#1A1A1A"
+                        android:textColor="#8B4513"
                         android:layout_marginBottom="12dp" />
 
                     <View
                         android:layout_width="match_parent"
                         android:layout_height="1dp"
-                        android:background="#E0E0E0"
+                        android:background="#FFE4B5"
                         android:layout_marginBottom="12dp" />
 
                     <!-- Kombucha Starter -->
@@ -205,7 +207,7 @@
                         android:layout_height="wrap_content"
                         android:text="Kombucha Starter"
                         android:textSize="12sp"
-                        android:textColor="#757575"
+                        android:textColor="#A0522D"
                         android:textStyle="bold" />
                     <TextView
                         android:id="@+id/tv_kombucha_starter"
@@ -213,7 +215,7 @@
                         android:layout_height="wrap_content"
                         android:text="3/4 cup from Batch #3"
                         android:textSize="16sp"
-                        android:textColor="#1A1A1A" />
+                        android:textColor="#8B4513" />
 
                 </LinearLayout>
 
@@ -233,7 +235,7 @@
                     android:text="SECOND FERMENTATION"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    android:textColor="#757575"
+                    android:textColor="#D2691E"
                     android:layout_marginBottom="8dp"
                     android:letterSpacing="0.1" />
 
@@ -255,7 +257,7 @@
                             android:layout_height="wrap_content"
                             android:text="Flavor"
                             android:textSize="12sp"
-                            android:textColor="#757575"
+                            android:textColor="#A0522D"
                             android:textStyle="bold" />
                         <TextView
                             android:id="@+id/tv_flavor"
@@ -263,7 +265,7 @@
                             android:layout_height="wrap_content"
                             android:text="50g Ginger and Dried Flowers"
                             android:textSize="16sp"
-                            android:textColor="#1A1A1A" />
+                            android:textColor="#8B4513" />
 
                     </LinearLayout>
 
@@ -278,7 +280,7 @@
                 android:text="TIMELINE"
                 android:textSize="14sp"
                 android:textStyle="bold"
-                android:textColor="#757575"
+                android:textColor="#D2691E"
                 android:layout_marginBottom="8dp"
                 android:letterSpacing="0.1" />
 
@@ -300,7 +302,7 @@
                         android:layout_height="wrap_content"
                         android:text="Created"
                         android:textSize="12sp"
-                        android:textColor="#757575"
+                        android:textColor="#A0522D"
                         android:textStyle="bold" />
                     <TextView
                         android:id="@+id/tv_created_date"
@@ -308,7 +310,7 @@
                         android:layout_height="wrap_content"
                         android:text="Oct 28, 2025"
                         android:textSize="16sp"
-                        android:textColor="#1A1A1A"
+                        android:textColor="#8B4513"
                         android:layout_marginBottom="12dp" />
 
                     <TextView
@@ -316,7 +318,7 @@
                         android:layout_height="wrap_content"
                         android:text="Brewing Started"
                         android:textSize="12sp"
-                        android:textColor="#757575"
+                        android:textColor="#A0522D"
                         android:textStyle="bold" />
                     <TextView
                         android:id="@+id/tv_brewing_start_date"
@@ -324,7 +326,7 @@
                         android:layout_height="wrap_content"
                         android:text="N/A"
                         android:textSize="16sp"
-                        android:textColor="#1A1A1A"
+                        android:textColor="#8B4513"
                         android:layout_marginBottom="12dp" />
 
                     <TextView
@@ -332,7 +334,7 @@
                         android:layout_height="wrap_content"
                         android:text="Completed"
                         android:textSize="12sp"
-                        android:textColor="#757575"
+                        android:textColor="#A0522D"
                         android:textStyle="bold" />
                     <TextView
                         android:id="@+id/tv_completion_date"
@@ -340,7 +342,7 @@
                         android:layout_height="wrap_content"
                         android:text="N/A"
                         android:textSize="16sp"
-                        android:textColor="#1A1A1A" />
+                        android:textColor="#8B4513" />
 
                 </LinearLayout>
 
@@ -360,7 +362,7 @@
                     android:text="NOTES"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    android:textColor="#757575"
+                    android:textColor="#D2691E"
                     android:layout_marginBottom="8dp"
                     android:letterSpacing="0.1" />
 
@@ -377,7 +379,7 @@
                         android:layout_height="wrap_content"
                         android:text="Recipe notes here..."
                         android:textSize="14sp"
-                        android:textColor="#424242"
+                        android:textColor="#8B4513"
                         android:padding="16dp" />
 
                 </androidx.cardview.widget.CardView>
@@ -407,7 +409,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Edit"
-            android:backgroundTint="#FF9100"
+            android:backgroundTint="#FF8C00"
             android:layout_marginEnd="8dp" />
 
         <Button
@@ -416,7 +418,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Start Brewing"
-            android:backgroundTint="#4A148C"
+            android:backgroundTint="#D2691E"
             android:visibility="visible" />
 
         <Button
@@ -425,7 +427,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Mark Complete"
-            android:backgroundTint="#4CAF50"
+            android:backgroundTint="#CD853F"
             android:visibility="gone" />
 
     </LinearLayout>
