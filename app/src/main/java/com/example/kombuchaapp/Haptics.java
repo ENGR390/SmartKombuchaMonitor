@@ -4,6 +4,8 @@ import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.ImageButton;
 
 public final class Haptics {
     private Haptics() {}
@@ -14,18 +16,22 @@ public final class Haptics {
     }
 
     private static void attachRecursively(View v) {
-        if (isClickableWidget(v)) {
+        if (isButtonLike(v)) {
             v.setHapticFeedbackEnabled(true);
 
             v.setOnTouchListener((view, event) -> {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                         return true;
 
                     case MotionEvent.ACTION_UP:
                         float x = event.getX(), y = event.getY();
-                        if (x >= 0 && y >= 0 && x <= view.getWidth() && y <= view.getHeight()) {
+                        boolean inside = (x >= 0 && y >= 0
+                                && x <= view.getWidth()
+                                && y <= view.getHeight());
+
+                        if (inside) {
+                            view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
                             view.performClick();
                         }
                         return true;
@@ -44,7 +50,8 @@ public final class Haptics {
         }
     }
 
-    private static boolean isClickableWidget(View v) {
-        return v.isClickable();
+    private static boolean isButtonLike(View v) {
+        return (v instanceof Button) ||
+                (v instanceof ImageButton);
     }
 }
