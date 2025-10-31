@@ -5,16 +5,18 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="#FFF5E6"
     tools:context=".EditRecipeActivity">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="409dp"
         android:layout_height="wrap_content"
-        android:background="?attr/colorPrimary"
+        android:background="#FF8C00"
         android:minHeight="?attr/actionBarSize"
         android:theme="?attr/actionBarTheme"
         app:title="Edit Recipe"
+        app:titleTextColor="#FFFFFF"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -41,6 +43,7 @@
                 android:layout_marginBottom="20dp"
                 android:text="Update Your Recipe"
                 android:textAppearance="@style/TextAppearance.AppCompat.Display1"
+                android:textColor="#D2691E"
                 android:layout_gravity="center" />
 
             <TextView
@@ -49,7 +52,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="25dp"
                 android:layout_marginTop="15dp"
-                android:text="Recipe Name:" />
+                android:text="Recipe Name:"
+                android:textColor="#8B4513"
+                android:textStyle="bold" />
 
             <EditText
                 android:id="@+id/RecipeNameEditText"
@@ -59,9 +64,12 @@
                 android:layout_marginEnd="20dp"
                 android:layout_marginTop="5dp"
                 android:hint="Name of your Recipe"
+                android:textColorHint="#CD853F"
+                android:textColor="#8B4513"
                 android:inputType="text"
                 android:minHeight="48dp"
-                android:padding="12dp" />
+                android:padding="12dp"
+                android:background="@android:drawable/edit_text" />
 
             <TextView
                 android:id="@+id/textView2"
@@ -71,7 +79,8 @@
                 android:layout_marginTop="10dp"
                 android:text="1st Fermentation: "
                 android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:textColor="#D2691E" />
 
             <TextView
                 android:id="@+id/textView4"
@@ -79,7 +88,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="25dp"
                 android:layout_marginTop="15dp"
-                android:text="Tea Leafs:" />
+                android:text="Tea Leafs:"
+                android:textColor="#8B4513"
+                android:textStyle="bold" />
 
             <EditText
                 android:id="@+id/teaLeaf"
@@ -89,9 +100,12 @@
                 android:layout_marginEnd="20dp"
                 android:layout_marginTop="5dp"
                 android:hint="3 Tbs of Black Tea"
+                android:textColorHint="#CD853F"
+                android:textColor="#8B4513"
                 android:inputType="text"
                 android:minHeight="48dp"
-                android:padding="12dp" />
+                android:padding="12dp"
+                android:background="@android:drawable/edit_text" />
 
             <TextView
                 android:id="@+id/textView5"
@@ -99,7 +113,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="25dp"
                 android:layout_marginTop="15dp"
-                android:text="Water:" />
+                android:text="Water:"
+                android:textColor="#8B4513"
+                android:textStyle="bold" />
 
             <EditText
                 android:id="@+id/water"
@@ -109,9 +125,12 @@
                 android:layout_marginEnd="20dp"
                 android:layout_marginTop="5dp"
                 android:hint="12 cups of Water"
+                android:textColorHint="#CD853F"
+                android:textColor="#8B4513"
                 android:inputType="text"
                 android:minHeight="48dp"
-                android:padding="12dp" />
+                android:padding="12dp"
+                android:background="@android:drawable/edit_text" />
 
             <TextView
                 android:id="@+id/textView6"
@@ -119,7 +138,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="25dp"
                 android:layout_marginTop="15dp"
-                android:text="Sugar:" />
+                android:text="Sugar:"
+                android:textColor="#8B4513"
+                android:textStyle="bold" />
 
             <EditText
                 android:id="@+id/sugar"
@@ -129,9 +150,12 @@
                 android:layout_marginEnd="20dp"
                 android:layout_marginTop="5dp"
                 android:hint="3/4 cups of Sugar"
+                android:textColorHint="#CD853F"
+                android:textColor="#8B4513"
                 android:inputType="text"
                 android:minHeight="48dp"
-                android:padding="12dp" />
+                android:padding="12dp"
+                android:background="@android:drawable/edit_text" />
 
             <TextView
                 android:id="@+id/textView7"
@@ -139,7 +163,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="25dp"
                 android:layout_marginTop="15dp"
-                android:text="SCOBY" />
+                android:text="SCOBY"
+                android:textColor="#8B4513"
+                android:textStyle="bold" />
 
             <EditText
                 android:id="@+id/scoby"
@@ -149,9 +175,12 @@
                 android:layout_marginEnd="20dp"
                 android:layout_marginTop="5dp"
                 android:hint="1/2 inch SCOBY"
+                android:textColorHint="#CD853F"
+                android:textColor="#8B4513"
                 android:inputType="text"
                 android:minHeight="48dp"
-                android:padding="12dp" />
+                android:padding="12dp"
+                android:background="@android:drawable/edit_text" />
 
             <TextView
                 android:id="@+id/textView9"
@@ -159,7 +188,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="25dp"
                 android:layout_marginTop="15dp"
-                android:text="Kombucha Starter: " />
+                android:text="Kombucha Starter: "
+                android:textColor="#8B4513"
+                android:textStyle="bold" />
 
             <EditText
                 android:id="@+id/kombuchaStarter"
@@ -169,9 +200,12 @@
                 android:layout_marginEnd="20dp"
                 android:layout_marginTop="5dp"
                 android:hint="3/4 cup of Kombucha Starter from Batch#3"
+                android:textColorHint="#CD853F"
+                android:textColor="#8B4513"
                 android:inputType="text"
                 android:minHeight="48dp"
-                android:padding="12dp" />
+                android:padding="12dp"
+                android:background="@android:drawable/edit_text" />
 
             <TextView
                 android:id="@+id/textView11"
@@ -181,7 +215,8 @@
                 android:layout_marginTop="25dp"
                 android:text="Second Fermentation"
                 android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:textColor="#D2691E" />
 
             <TextView
                 android:id="@+id/textView10"
@@ -189,7 +224,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="25dp"
                 android:layout_marginTop="15dp"
-                android:text="Flavor for Second Fermentation (Optional)" />
+                android:text="Flavor for Second Fermentation (Optional)"
+                android:textColor="#8B4513"
+                android:textStyle="bold" />
 
             <EditText
                 android:id="@+id/flavor1"
@@ -199,9 +236,12 @@
                 android:layout_marginEnd="20dp"
                 android:layout_marginTop="5dp"
                 android:hint="50 grams of Ginger and Dried Flowers"
+                android:textColorHint="#CD853F"
+                android:textColor="#8B4513"
                 android:inputType="text"
                 android:minHeight="48dp"
-                android:padding="12dp" />
+                android:padding="12dp"
+                android:background="@android:drawable/edit_text" />
 
             <Button
                 android:id="@+id/btnUpdateRecipe"
@@ -214,7 +254,7 @@
                 android:text="Update Recipe"
                 android:textSize="16sp"
                 android:padding="16dp"
-                android:backgroundTint="#FF9100" />
+                android:backgroundTint="#FF8C00" />
 
             <ProgressBar
                 android:id="@+id/progressBar"
@@ -223,6 +263,7 @@
                 android:layout_gravity="center"
                 android:layout_marginTop="16dp"
                 android:layout_marginBottom="24dp"
+                android:indeterminateTint="#FF8C00"
                 android:visibility="gone" />
 
         </LinearLayout>
