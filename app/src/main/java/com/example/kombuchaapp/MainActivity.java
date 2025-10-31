@@ -5,6 +5,8 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -28,7 +30,8 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
 
     private static final String TAG = "MainActivity";
 
-    Button newRecipeButton, settingsButton, logoutButton, sensorReadingsButton;
+    Button newRecipeButton, logoutButton, sensorReadingsButton;
+    ImageButton settingsButton;
     RecyclerView recipesRecyclerView;
     TextView emptyStateText;
     ProgressBar progressBar;
@@ -71,15 +74,14 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
         // Load recipes
         loadRecipes();
 
-        // Existing button listeners
+        //Existing button listeners
         newRecipeButton.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, CreateANewRecipe.class);
             startActivity(intent);
         });
 
         settingsButton.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
-            startActivity(intent);
+            showSettingsMenu(v);
         });
 
         sensorReadingsButton.setOnClickListener(v -> {
@@ -90,6 +92,28 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
         logoutButton.setOnClickListener(v -> {
             logout();
         });
+    }
+
+    private void showSettingsMenu(View view) {
+        PopupMenu popup = new PopupMenu(this, view);
+        popup.getMenuInflater().inflate(R.menu.settings_menu, popup.getMenu());
+
+        popup.setOnMenuItemClickListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == R.id.menu_settings) {
+                // Navigate to settings
+                Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+                startActivity(intent);
+                return true;
+            } else if (itemId == R.id.menu_logout) {
+                // Logout
+                logout();
+                return true;
+            }
+            return false;
+        });
+
+        popup.show();
     }
 
     @Override
