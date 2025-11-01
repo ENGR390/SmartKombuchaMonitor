@@ -5,6 +5,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 
 public final class Haptics {
@@ -21,17 +22,22 @@ public final class Haptics {
 
             v.setOnTouchListener((view, event) -> {
                 switch (event.getAction()) {
+
                     case MotionEvent.ACTION_DOWN:
                         return true;
 
                     case MotionEvent.ACTION_UP:
-                        float x = event.getX(), y = event.getY();
-                        boolean inside = (x >= 0 && y >= 0
-                                && x <= view.getWidth()
-                                && y <= view.getHeight());
+                        float x = event.getX();
+                        float y = event.getY();
+                        boolean inside =
+                                (x >= 0 && y >= 0
+                                        && x <= view.getWidth()
+                                        && y <= view.getHeight());
 
                         if (inside) {
-                            view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
+                            view.performHapticFeedback(
+                                    HapticFeedbackConstants.CONTEXT_CLICK
+                            );
                             view.performClick();
                         }
                         return true;
@@ -42,6 +48,7 @@ public final class Haptics {
                 return false;
             });
         }
+
         if (v instanceof ViewGroup) {
             ViewGroup vg = (ViewGroup) v;
             for (int i = 0; i < vg.getChildCount(); i++) {
@@ -51,7 +58,11 @@ public final class Haptics {
     }
 
     private static boolean isButtonLike(View v) {
-        return (v instanceof Button) ||
-                (v instanceof ImageButton);
+        if (v instanceof Button) return true;
+        if (v instanceof ImageButton) return true;
+        if (v instanceof EditText) return false;
+        if (v.isClickable()) return true;
+
+        return false;
     }
 }
