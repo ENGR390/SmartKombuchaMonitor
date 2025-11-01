@@ -46,6 +46,7 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
     @Override
     public RecipeViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(context).inflate(R.layout.item_recipe_card, parent, false);
+        Haptics.attachToTree(view);
         return new RecipeViewHolder(view);
     }
 
