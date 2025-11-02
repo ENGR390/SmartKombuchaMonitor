@@ -4,6 +4,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,6 +18,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.kombuchaapp.models.Recipe;
 import com.example.kombuchaapp.repositories.RecipeRepository;
 import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -26,10 +31,13 @@ import java.util.Locale;
 
 public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeViewHolder> {
 
+    private static final String TAG = "RecipeAdapter";
     private Context context;
     private List<Recipe> recipes;
     private RecipeRepository recipeRepository;
     private OnRecipeDeletedListener deleteListener;
+    private FirebaseFirestore db;
+    private FirebaseAuth auth;
 
     public interface OnRecipeDeletedListener {
         void onRecipeDeleted();
@@ -40,6 +48,8 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
         this.recipes = new ArrayList<>();
         this.recipeRepository = new RecipeRepository();
         this.deleteListener = deleteListener;
+        this.db = FirebaseFirestore.getInstance();
+        this.auth = FirebaseAuth.getInstance();
     }
 
     @NonNull
@@ -176,6 +186,7 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
             recipeRepository.deleteRecipe(recipe.getRecipeId(), new RecipeRepository.OnUpdateListener() {
                 @Override
                 public void onSuccess(String message) {
+                    removeRecipeForSensors(recipe.getRecipeId()); // Call the new method
                     removeRecipe(position);
                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                     if (deleteListener != null) {
@@ -188,6 +199,36 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                     Toast.makeText(context, "Failed to delete: " + error, Toast.LENGTH_SHORT).show();
                 }
             });
+        }
+
+        private void removeRecipeForSensors(String recipeId) {
+            FirebaseUser currentUser = auth.getCurrentUser();
+
+            if (currentUser == null) {
+                Log.w(TAG, "Cannot remove recipe for sensors: No user logged in.");
+                Toast.makeText(context,
+                        "Error: No user logged in",
+                        Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            String userId = currentUser.getUid();
+
+            db.collection("sensor_control")
+                    .document(userId) // Use userId as the document ID
+                    .update("active_recipe_ids", FieldValue.arrayRemove(recipeId))
+                    .addOnSuccessListener(aVoid -> {
+                        Log.d(TAG, "Active recipe removed for user " + userId + ": " + recipeId);
+                        Toast.makeText(context,
+                                "Recipe deactivated for sensor readings.",
+                                Toast.LENGTH_SHORT).show();
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Failed to remove active recipe for user " + userId, e);
+                        Toast.makeText(context,
+                                "Warning: Could not deactivate sensors: " + e.getMessage(),
+                                Toast.LENGTH_LONG).show();
+                    });
         }
     }
 }
