@@ -20,14 +20,17 @@ import com.example.kombuchaapp.repositories.RecipeRepository;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeViewHolder> {
 
@@ -201,34 +204,31 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
             });
         }
 
-        private void removeRecipeForSensors(String recipeId) {
-            FirebaseUser currentUser = auth.getCurrentUser();
+        private void removeRecipeForSensors(String deletedRecipeId) {
+            // First, read the current active_config document
+            db.collection("sensor_control").document("active_config").get()
+                    .addOnSuccessListener(documentSnapshot -> {
+                        if (documentSnapshot.exists()) {
+                            String activeRecipeId = documentSnapshot.getString("active_recipe_id");
 
-            if (currentUser == null) {
-                Log.w(TAG, "Cannot remove recipe for sensors: No user logged in.");
-                Toast.makeText(context,
-                        "Error: No user logged in",
-                        Toast.LENGTH_SHORT).show();
-                return;
-            }
+                            // Check if the deleted recipe is the one that's currently active
+                            if (deletedRecipeId.equals(activeRecipeId)) {
+                                // If it is, clear the active config by setting fields to null
+                                Map<String, Object> updates = new HashMap<>();
+                                updates.put("active_recipe_id", null);
+                                updates.put("active_user_id", null);
 
-            String userId = currentUser.getUid();
-
-            db.collection("sensor_control")
-                    .document(userId) // Use userId as the document ID
-                    .update("active_recipe_ids", FieldValue.arrayRemove(recipeId))
-                    .addOnSuccessListener(aVoid -> {
-                        Log.d(TAG, "Active recipe removed for user " + userId + ": " + recipeId);
-                        Toast.makeText(context,
-                                "Recipe deactivated for sensor readings.",
-                                Toast.LENGTH_SHORT).show();
+                                db.collection("sensor_control").document("active_config")
+                                        .update(updates)
+                                        .addOnSuccessListener(aVoid -> {
+                                            Log.d(TAG, "Active recipe cleared from sensor_control because it was deleted.");
+                                            Toast.makeText(context, "Active recipe sensor deactivated.", Toast.LENGTH_SHORT).show();
+                                        })
+                                        .addOnFailureListener(e -> Log.e(TAG, "Failed to clear active recipe from sensor_control", e));
+                            }
+                        }
                     })
-                    .addOnFailureListener(e -> {
-                        Log.e(TAG, "Failed to remove active recipe for user " + userId, e);
-                        Toast.makeText(context,
-                                "Warning: Could not deactivate sensors: " + e.getMessage(),
-                                Toast.LENGTH_LONG).show();
-                    });
+                    .addOnFailureListener(e -> Log.e(TAG, "Failed to check active sensor config", e));
         }
     }
 }
