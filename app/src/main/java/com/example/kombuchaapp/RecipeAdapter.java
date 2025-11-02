@@ -164,13 +164,18 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
         }
 
         private void showDeleteConfirmation(Recipe recipe, int position) {
-            new AlertDialog.Builder(context)
+            AlertDialog dialog = new AlertDialog.Builder(context)
                     .setTitle("Delete Recipe")
                     .setMessage("Are you sure you want to delete \"" + recipe.getRecipeName() + "\"? This action cannot be undone.")
-                    .setPositiveButton("Delete", (dialog, which) -> deleteRecipe(recipe, position))
+                    .setPositiveButton("Delete", (d, which) -> deleteRecipe(recipe, position))
                     .setNegativeButton("Cancel", null)
                     .setIcon(android.R.drawable.ic_dialog_alert)
-                    .show();
+                    .create();
+
+            dialog.show();
+            View dialogView = dialog.getWindow().getDecorView();
+            Haptics.attachToTree(dialogView);
+
         }
 
         private void deleteRecipe(Recipe recipe, int position) {
