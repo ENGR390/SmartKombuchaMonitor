@@ -91,8 +91,9 @@ public class AllSensorReadingsActivity extends AppCompatActivity {
                             float tempF = document.getDouble("temperature_f") != null
                                     ? document.getDouble("temperature_f").floatValue() : 0f;
                             String timestamp = document.getString("timestamp");
+                            String userId = document.getString("user_id");
 
-                            SensorReadings reading = new SensorReadings(recipeId, sensorId, tempC, tempF, timestamp);
+                            SensorReadings reading = new SensorReadings(recipeId, sensorId, tempC, tempF, timestamp, userId);
                             sensorReadingsList.add(reading);
 
                         } catch (Exception e) {

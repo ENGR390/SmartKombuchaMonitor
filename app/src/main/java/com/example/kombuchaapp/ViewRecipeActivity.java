@@ -15,6 +15,9 @@ import androidx.appcompat.widget.Toolbar;
 import com.example.kombuchaapp.models.Recipe;
 import com.example.kombuchaapp.repositories.RecipeRepository;
 import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.text.SimpleDateFormat;
@@ -189,8 +192,45 @@ public class ViewRecipeActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        btnStartBrewing.setOnClickListener(v -> updateRecipeStatus("brewing"));
+        btnStartBrewing.setOnClickListener(v -> startBrewingProcess());
         btnMarkCompleted.setOnClickListener(v -> updateRecipeStatus("completed"));
+    }
+
+    private void startBrewingProcess() {
+        showLoading(true);
+
+        // Check the central sensor_control document
+        db.collection("sensor_control").document("active_config").get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        // Check if another recipe is already active
+                        String activeRecipeId = documentSnapshot.getString("active_recipe_id");
+
+                        // If a recipe is active and it's not the current one, block the process
+                        if (activeRecipeId != null && !activeRecipeId.equals(recipeId)) {
+                            runOnUiThread(() -> {
+                                showLoading(false);
+                                Toast.makeText(ViewRecipeActivity.this,
+                                        "Another recipe is already brewing. Please complete it first.",
+                                        Toast.LENGTH_LONG).show();
+                            });
+                            return; // Stop here
+                        }
+                    }
+                    // If the document doesn't exist, or no recipe is active, proceed to start brewing.
+                    runOnUiThread(() -> updateRecipeStatus("brewing"));
+
+                })
+                .addOnFailureListener(e -> {
+                    // If we can't check the status, it's safer to block and show an error.
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Log.e(TAG, "Failed to check active brewing status", e);
+                        Toast.makeText(ViewRecipeActivity.this,
+                                "Failed to check brewing status: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    });
+                });
     }
 
     private void updateRecipeStatus(String newStatus) {
@@ -202,7 +242,11 @@ public class ViewRecipeActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     // If starting brewing, also set as active recipe in sensor_control
                     if ("brewing".equals(newStatus)) {
-                        setActiveRecipeForSensors();
+                        addRecipeForSensors();
+                    }
+
+                    if ("completed".equals(newStatus)) {
+                        removeRecipeForSensors();
                     }
                     
                     showLoading(false);
@@ -223,24 +267,63 @@ public class ViewRecipeActivity extends AppCompatActivity {
         });
     }
 
-    private void setActiveRecipeForSensors() {
+    private void removeRecipeForSensors() {
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            Log.w(TAG, "Cannot remove recipe for sensors: No user logged in.");
+            return;
+        }
+
+        // To "remove" the active recipe, we set the fields to null.
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("active_recipe_id", null);
+        updates.put("active_user_id", null);
+
+        db.collection("sensor_control")
+                .document("active_config")
+                .update(updates)
+                .addOnSuccessListener(aVoid -> {
+                    Log.d(TAG, "Active recipe and user removed from sensor_control.");
+                    Toast.makeText(ViewRecipeActivity.this,
+                            "Recipe deactivated for sensor readings.",
+                            Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to remove active recipe from sensor_control", e);
+                    Toast.makeText(ViewRecipeActivity.this,
+                            "Warning: Could not deactivate sensors: " + e.getMessage(),
+                            Toast.LENGTH_LONG).show();
+                });
+    }
+
+    private void addRecipeForSensors() {
+        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
+        if (currentUser == null) {
+            Toast.makeText(ViewRecipeActivity.this, "Error: No user logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String userId = currentUser.getUid();
+
+        // Create a map to hold the active recipe and user ID.
         Map<String, Object> activeConfig = new HashMap<>();
-        activeConfig.put("current_recipe_id", recipeId);
-        
+        activeConfig.put("active_recipe_id", recipeId);
+        activeConfig.put("active_user_id", userId);
+
+        // Set the data on the 'active_config' document, overwriting previous values.
         db.collection("sensor_control")
                 .document("active_config")
                 .set(activeConfig)
                 .addOnSuccessListener(aVoid -> {
-                    Log.d(TAG, "Active recipe set for sensors: " + recipeId);
-                    Toast.makeText(ViewRecipeActivity.this, 
-                            "Recipe activated for sensor readings!", 
+                    Log.d(TAG, "Active recipe and user set in sensor_control: " + recipeId);
+                    Toast.makeText(ViewRecipeActivity.this,
+                            "Recipe activated for sensor readings!",
                             Toast.LENGTH_SHORT).show();
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to set active recipe", e);
+                    Log.e(TAG, "Failed to set active recipe in sensor_control", e);
                     Toast.makeText(ViewRecipeActivity.this,
                             "Warning: Couldn't activate sensors: " + e.getMessage(),
-                            Toast.LENGTH_SHORT).show();
+                            Toast.LENGTH_LONG).show();
                 });
     }
 

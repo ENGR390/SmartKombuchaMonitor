@@ -4,6 +4,7 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,19 +18,29 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.kombuchaapp.models.Recipe;
 import com.example.kombuchaapp.repositories.RecipeRepository;
 import com.google.firebase.Timestamp;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeViewHolder> {
 
+    private static final String TAG = "RecipeAdapter";
     private Context context;
     private List<Recipe> recipes;
     private RecipeRepository recipeRepository;
     private OnRecipeDeletedListener deleteListener;
+    private FirebaseFirestore db;
+    private FirebaseAuth auth;
 
     public interface OnRecipeDeletedListener {
         void onRecipeDeleted();
@@ -40,6 +51,8 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
         this.recipes = new ArrayList<>();
         this.recipeRepository = new RecipeRepository();
         this.deleteListener = deleteListener;
+        this.db = FirebaseFirestore.getInstance();
+        this.auth = FirebaseAuth.getInstance();
     }
 
     @NonNull
@@ -176,6 +189,7 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
             recipeRepository.deleteRecipe(recipe.getRecipeId(), new RecipeRepository.OnUpdateListener() {
                 @Override
                 public void onSuccess(String message) {
+                    removeRecipeForSensors(recipe.getRecipeId()); // Call the new method
                     removeRecipe(position);
                     Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
                     if (deleteListener != null) {
@@ -188,6 +202,33 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                     Toast.makeText(context, "Failed to delete: " + error, Toast.LENGTH_SHORT).show();
                 }
             });
+        }
+
+        private void removeRecipeForSensors(String deletedRecipeId) {
+            // First, read the current active_config document
+            db.collection("sensor_control").document("active_config").get()
+                    .addOnSuccessListener(documentSnapshot -> {
+                        if (documentSnapshot.exists()) {
+                            String activeRecipeId = documentSnapshot.getString("active_recipe_id");
+
+                            // Check if the deleted recipe is the one that's currently active
+                            if (deletedRecipeId.equals(activeRecipeId)) {
+                                // If it is, clear the active config by setting fields to null
+                                Map<String, Object> updates = new HashMap<>();
+                                updates.put("active_recipe_id", null);
+                                updates.put("active_user_id", null);
+
+                                db.collection("sensor_control").document("active_config")
+                                        .update(updates)
+                                        .addOnSuccessListener(aVoid -> {
+                                            Log.d(TAG, "Active recipe cleared from sensor_control because it was deleted.");
+                                            Toast.makeText(context, "Active recipe sensor deactivated.", Toast.LENGTH_SHORT).show();
+                                        })
+                                        .addOnFailureListener(e -> Log.e(TAG, "Failed to clear active recipe from sensor_control", e));
+                            }
+                        }
+                    })
+                    .addOnFailureListener(e -> Log.e(TAG, "Failed to check active sensor config", e));
         }
     }
 }
