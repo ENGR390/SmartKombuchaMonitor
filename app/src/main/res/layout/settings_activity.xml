@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
-    android:background="#F0F0F0">
+    android:background="#FFF5E6">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -17,7 +17,7 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:background="#4A148C"
+            android:background="@drawable/gradient_orange_header"
             android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
             app:contentInsetStartWithNavigation="0dp">
 
@@ -56,7 +56,8 @@
                 android:textAllCaps="true"
                 android:letterSpacing="0.05"
                 android:textSize="12sp"
-                android:textColor="#7A7A7A"
+                android:textColor="#D2691E"
+                android:textStyle="bold"
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp" />
 
@@ -75,12 +76,13 @@
                     android:layout_height="wrap_content"
                     android:text="Change User Information"
                     android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:textColor="#8B4513" />
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="#1F000000"
+                    android:background="#CD853F"
                     android:layout_marginTop="12dp"
                     android:layout_marginBottom="12dp"/>
 
@@ -89,7 +91,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Username"
-                    android:textSize="14sp" />
+                    android:textSize="14sp"
+                    android:textColor="#8B4513" />
 
                 <EditText
                     android:id="@+id/et_username"
@@ -101,7 +104,9 @@
                     android:inputType="textPersonName"
                     android:autofillHints="username"
                     android:importantForAutofill="yes"
-                    android:backgroundTint="#BDBDBD"
+                    android:textColor="#8B4513"
+                    android:textColorHint="#CD853F"
+                    android:backgroundTint="#FF8C00"
                     tools:ignore="HardcodedText" />
 
                 <!-- Email -->
@@ -110,6 +115,7 @@
                     android:layout_height="wrap_content"
                     android:text="Email"
                     android:textSize="14sp"
+                    android:textColor="#8B4513"
                     android:layout_marginTop="12dp" />
 
                 <EditText
@@ -122,7 +128,9 @@
                     android:inputType="textEmailAddress"
                     android:autofillHints="emailAddress"
                     android:importantForAutofill="yes"
-                    android:backgroundTint="#BDBDBD"
+                    android:textColor="#8B4513"
+                    android:textColorHint="#CD853F"
+                    android:backgroundTint="#FF8C00"
                     tools:ignore="HardcodedText" />
 
                 <!-- Old Password (NEW) -->
@@ -131,6 +139,7 @@
                     android:layout_height="wrap_content"
                     android:text="Current Password"
                     android:textSize="14sp"
+                    android:textColor="#8B4513"
                     android:layout_marginTop="12dp" />
 
                 <EditText
@@ -143,7 +152,9 @@
                     android:inputType="textPassword"
                     android:autofillHints="password"
                     android:importantForAutofill="yes"
-                    android:backgroundTint="#BDBDBD"
+                    android:textColor="#8B4513"
+                    android:textColorHint="#CD853F"
+                    android:backgroundTint="#FF8C00"
                     tools:ignore="HardcodedText" />
 
                 <!-- New Password -->
@@ -152,6 +163,7 @@
                     android:layout_height="wrap_content"
                     android:text="New Password"
                     android:textSize="14sp"
+                    android:textColor="#8B4513"
                     android:layout_marginTop="12dp" />
 
                 <EditText
@@ -164,7 +176,9 @@
                     android:inputType="textPassword"
                     android:autofillHints="password"
                     android:importantForAutofill="yes"
-                    android:backgroundTint="#BDBDBD"
+                    android:textColor="#8B4513"
+                    android:textColorHint="#CD853F"
+                    android:backgroundTint="#FF8C00"
                     tools:ignore="HardcodedText" />
 
                 <CheckBox
@@ -172,6 +186,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Show passwords"
+                    android:textColor="#8B4513"
                     android:layout_marginTop="6dp" />
 
                 <Button
@@ -179,7 +194,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="Save"
-                    android:layout_marginTop="16dp" />
+                    android:layout_marginTop="16dp"
+                    android:backgroundTint="#FF6D00"
+                    android:textColor="@android:color/white" />
             </LinearLayout>
 
             <!-- SECTION: Units -->
@@ -190,8 +207,9 @@
                 android:textAllCaps="true"
                 android:letterSpacing="0.05"
                 android:textSize="12sp"
-                android:textColor="#7A7A7A"
-                android:layout_marginTop="8dp"
+                android:textColor="#D2691E"
+                android:textStyle="bold"
+                android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp" />
 
             <LinearLayout
@@ -208,12 +226,13 @@
                     android:layout_height="wrap_content"
                     android:text="Temperature Unit"
                     android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:textColor="#8B4513" />
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="#1F000000"
+                    android:background="#CD853F"
                     android:layout_marginTop="12dp"
                     android:layout_marginBottom="12dp"/>
 
@@ -235,6 +254,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Celsius (°C)"
+                            android:textColor="#8B4513"
                             android:checked="true"/>
 
                         <RadioButton
@@ -242,6 +262,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Fahrenheit (°F)"
+                            android:textColor="#8B4513"
                             android:layout_marginStart="24dp"/>
                     </RadioGroup>
                 </LinearLayout>
@@ -255,7 +276,8 @@
                 android:textAllCaps="true"
                 android:letterSpacing="0.05"
                 android:textSize="12sp"
-                android:textColor="#7A7A7A"
+                android:textColor="#D2691E"
+                android:textStyle="bold"
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp" />
 
@@ -273,12 +295,13 @@
                     android:layout_height="wrap_content"
                     android:text="Size"
                     android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:textColor="#8B4513" />
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="#1F000000"
+                    android:background="#CD853F"
                     android:layout_marginTop="12dp"
                     android:layout_marginBottom="12dp"/>
 
@@ -286,7 +309,9 @@
                     android:id="@+id/seek_font"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:max="55" />
+                    android:max="55"
+                    android:progressTint="#FF8C00"
+                    android:thumbTint="#FF8C00" />
 
                 <TextView
                     android:id="@+id/txt_font_preview"
@@ -294,6 +319,7 @@
                     android:layout_height="wrap_content"
                     android:text="Preview • 100%"
                     android:textSize="16sp"
+                    android:textColor="#8B4513"
                     android:layout_marginTop="12dp"/>
             </LinearLayout>
 
@@ -305,7 +331,8 @@
                 android:textAllCaps="true"
                 android:letterSpacing="0.05"
                 android:textSize="12sp"
-                android:textColor="#7A7A7A"
+                android:textColor="#D2691E"
+                android:textStyle="bold"
                 android:layout_marginTop="24dp"
                 android:layout_marginBottom="8dp" />
 
@@ -323,12 +350,13 @@
                     android:layout_height="wrap_content"
                     android:text="Color"
                     android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:textColor="#8B4513" />
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="#1F000000"
+                    android:background="#CD853F"
                     android:layout_marginTop="12dp"
                     android:layout_marginBottom="12dp"/>
 
@@ -339,24 +367,36 @@
                     android:orientation="vertical">
 
                     <RadioButton
+                        android:id="@+id/opt_kombucha"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Kombucha (Orange)"
+                        android:textColor="#8B4513"
+                        android:layout_marginTop="8dp"
+                        android:checked="true"/>
+
+                    <RadioButton
                         android:id="@+id/opt_purple"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Purple"
-                        android:layout_marginTop="8dp"
-                        android:checked="true"/>
+                        android:textColor="#8B4513"
+                        android:layout_marginTop="8dp"/>
 
                     <RadioButton
                         android:id="@+id/opt_gray"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Gray"/>
+                        android:text="Gray"
+                        android:textColor="#8B4513"
+                        android:layout_marginTop="8dp"/>
 
                     <RadioButton
                         android:id="@+id/opt_blue"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Blue"
+                        android:textColor="#8B4513"
                         android:layout_marginTop="8dp"/>
 
                     <RadioButton
@@ -364,6 +404,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Green"
+                        android:textColor="#8B4513"
                         android:layout_marginTop="8dp"/>
 
                 </RadioGroup>
