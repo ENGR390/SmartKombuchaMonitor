@@ -15,10 +15,13 @@ import androidx.appcompat.widget.Toolbar;
 import com.example.kombuchaapp.models.Recipe;
 import com.example.kombuchaapp.repositories.RecipeRepository;
 import com.google.firebase.Timestamp;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 public class ViewRecipeActivity extends AppCompatActivity {
@@ -35,6 +38,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
     // Repository
     private RecipeRepository recipeRepository;
+    private FirebaseFirestore db;
     private String recipeId;
     private Recipe currentRecipe;
 
@@ -52,6 +56,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         }
 
         recipeRepository = new RecipeRepository();
+        db = FirebaseFirestore.getInstance();
 
         // Initialize toolbar
         Toolbar toolbar = findViewById(R.id.toolbar);
@@ -195,6 +200,11 @@ public class ViewRecipeActivity extends AppCompatActivity {
             @Override
             public void onSuccess(String message) {
                 runOnUiThread(() -> {
+                    // If starting brewing, also set as active recipe in sensor_control
+                    if ("brewing".equals(newStatus)) {
+                        setActiveRecipeForSensors();
+                    }
+                    
                     showLoading(false);
                     Toast.makeText(ViewRecipeActivity.this, message, Toast.LENGTH_SHORT).show();
                     loadRecipe(); // Reload to update UI
@@ -211,6 +221,27 @@ public class ViewRecipeActivity extends AppCompatActivity {
                 });
             }
         });
+    }
+
+    private void setActiveRecipeForSensors() {
+        Map<String, Object> activeConfig = new HashMap<>();
+        activeConfig.put("current_recipe_id", recipeId);
+        
+        db.collection("sensor_control")
+                .document("active_config")
+                .set(activeConfig)
+                .addOnSuccessListener(aVoid -> {
+                    Log.d(TAG, "Active recipe set for sensors: " + recipeId);
+                    Toast.makeText(ViewRecipeActivity.this, 
+                            "Recipe activated for sensor readings!", 
+                            Toast.LENGTH_SHORT).show();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to set active recipe", e);
+                    Toast.makeText(ViewRecipeActivity.this,
+                            "Warning: Couldn't activate sensors: " + e.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                });
     }
 
     private String formatDate(Timestamp timestamp) {
