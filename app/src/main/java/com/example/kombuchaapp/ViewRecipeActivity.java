@@ -14,11 +14,15 @@ import androidx.appcompat.widget.Toolbar;
 
 import com.example.kombuchaapp.models.Recipe;
 import com.example.kombuchaapp.repositories.RecipeRepository;
+import com.example.kombuchaapp.AlertAdapter;
+import com.example.kombuchaapp.TemperatureAlert;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.Query;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -35,6 +39,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private TextView tvRecipeName, tvStatus, tvTeaLeaf, tvWater, tvSugar, tvScoby,
             tvKombuchaStarter, tvFlavor, tvCreatedDate, tvBrewingStartDate,
             tvCompletionDate, tvNotes;
+    private TextView tvTempAlert;
     private Button btnEdit, btnStartBrewing, btnMarkCompleted;
     private ProgressBar progressBar;
     private View notesSection, flavorSection;
@@ -44,6 +49,8 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private FirebaseFirestore db;
     private String recipeId;
     private Recipe currentRecipe;
+
+    private ListenerRegistration readingsListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -82,6 +89,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progressBar);
         tvRecipeName = findViewById(R.id.tv_recipe_name);
         tvStatus = findViewById(R.id.tv_status);
+        tvTempAlert = findViewById(R.id.tv_temp_alert);
         tvTeaLeaf = findViewById(R.id.tv_tea_leaf);
         tvWater = findViewById(R.id.tv_water);
         tvSugar = findViewById(R.id.tv_sugar);
@@ -166,6 +174,10 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
         // Update button visibility based on status
         updateButtonsForStatus(status);
+
+        if (!"brewing".equalsIgnoreCase(status)) {
+            tvTempAlert.setVisibility(View.GONE);
+        }
     }
 
     private void updateButtonsForStatus(String status) {
@@ -243,10 +255,13 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     // If starting brewing, also set as active recipe in sensor_control
                     if ("brewing".equals(newStatus)) {
                         addRecipeForSensors();
+                        startReadingListener();
                     }
 
                     if ("completed".equals(newStatus)) {
                         removeRecipeForSensors();
+                        stopReadingListener();
+                        tvTempAlert.setVisibility(View.GONE);
                     }
                     
                     showLoading(false);
@@ -336,6 +351,49 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
     private void showLoading(boolean show) {
         progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if (currentRecipe != null && "brewing".equalsIgnoreCase(currentRecipe.getStatus())) {
+            startReadingListener();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        stopReadingListener();
+    }
+
+    private void startReadingListener() {
+        stopReadingListener();
+        readingsListener = db.collection("sensor_readings")
+                .whereEqualTo("recipe_id", recipeId)
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(1)
+                .addSnapshotListener((snap, err) -> {
+                    if (err != null || snap == null || snap.isEmpty()) return;
+
+                    Double tempFd = snap.getDocuments().get(0).getDouble("temperature_f");
+                    if (tempFd == null) return;
+                    float tempF = tempFd.floatValue();
+
+                    AlertAdapter.handleNewReading(this, tempF, tvTempAlert);
+
+                    TemperatureAlert.Result r = TemperatureAlert.evaluateF(tempF);
+                    tvTempAlert.setVisibility(View.VISIBLE);
+                    tvTempAlert.setContentDescription("Temperature status: " + r.title);
+                });
+    }
+
+    private void stopReadingListener() {
+        if (readingsListener != null) {
+            readingsListener.remove();
+            readingsListener = null;
+        }
+        AlertAdapter.resetDebounce();
     }
 
     @Override
