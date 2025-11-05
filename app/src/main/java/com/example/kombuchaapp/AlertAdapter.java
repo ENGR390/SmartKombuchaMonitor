@@ -120,7 +120,7 @@ public final class AlertAdapter {
 
     private static int extractSolidColor(GradientDrawable gd, int fallback) {
         try {
-            if (gd.getColor() != null) {
+            if (android.os.Build.VERSION.SDK_INT >= 24 && gd.getColor() != null) {
                 return gd.getColor().getDefaultColor();
             }
         } catch (Throwable ignored) {}
