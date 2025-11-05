@@ -380,7 +380,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     if (tempFd == null) return;
                     float tempF = tempFd.floatValue();
 
-                    AlertAdapter.handleNewReading(this, tempF, tvTempAlert);
+                    AlertAdapter.handleNewReading(this, recipeId, tempF, tvTempAlert);
 
                     TemperatureAlert.Result r = TemperatureAlert.evaluateF(tempF);
                     tvTempAlert.setVisibility(View.VISIBLE);

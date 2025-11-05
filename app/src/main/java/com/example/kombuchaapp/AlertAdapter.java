@@ -4,6 +4,7 @@ import android.animation.ArgbEvaluator;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.app.Activity;
+import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -14,6 +15,7 @@ import android.view.ViewGroup;
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.core.view.ViewCompat;
 
+import com.example.kombuchaapp.NotificationHelper;
 import com.google.android.material.snackbar.Snackbar;
 
 public final class AlertAdapter {
@@ -23,7 +25,10 @@ public final class AlertAdapter {
     private static long lastSevereAtMs = 0;
     private static final long SEVERE_COOLDOWN_MS = 60_000;
 
-    public static void handleNewReading(Activity activity, float tempF, View statusPill) {
+    private static long lastCriticalPushAtMs = 0;
+    private static final long CRITICAL_PUSH_COOLDOWN = 5 * 60_000;
+
+    public static void handleNewReading(Activity activity, String recipeId, float tempF, View statusPill) {
         TemperatureAlert.Result r = TemperatureAlert.evaluateF(tempF);
         View root = activity.findViewById(android.R.id.content);
 
@@ -71,11 +76,26 @@ public final class AlertAdapter {
             default:
                 break;
         }
+
+        if (r.level == TemperatureAlert.Level.CRITICAL) {
+            if (now - lastCriticalPushAtMs > CRITICAL_PUSH_COOLDOWN) {
+                lastCriticalPushAtMs = now;
+                Context ctx = activity.getApplicationContext();
+                NotificationHelper.notifyCritical(
+                        ctx,
+                        recipeId != null ? recipeId : "",
+                        r.title,
+                        r.message,
+                        tempF
+                );
+            }
+        }
     }
 
     public static void resetDebounce() {
         lastLevelShown = null;
         lastSevereAtMs = 0;
+        lastCriticalPushAtMs = 0;
     }
 
     private static void tintBadge(View v, int toColor) {
@@ -120,7 +140,7 @@ public final class AlertAdapter {
 
     private static int extractSolidColor(GradientDrawable gd, int fallback) {
         try {
-            if (gd.getColor() != null) {
+            if (android.os.Build.VERSION.SDK_INT >= 24 && gd.getColor() != null) {
                 return gd.getColor().getDefaultColor();
             }
         } catch (Throwable ignored) {}

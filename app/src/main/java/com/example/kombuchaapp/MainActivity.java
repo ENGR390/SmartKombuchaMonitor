@@ -1,6 +1,7 @@
 package com.example.kombuchaapp;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -52,6 +53,8 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        ensurePostNotificationsPermission();
 
         mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
         fAuth = FirebaseAuth.getInstance();
@@ -190,5 +193,21 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
         Intent intent = new Intent(MainActivity.this, Login.class);
         startActivity(intent);
         finish();
+    }
+
+    private void ensurePostNotificationsPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            SharedPreferences sp = getSharedPreferences("kombucha_prefs", MODE_PRIVATE);
+            boolean alreadyAsked = sp.getBoolean("asked_post_notifications_v1", false);
+
+            if (!alreadyAsked) {
+                sp.edit().putBoolean("asked_post_notifications_v1", true).apply();
+
+                if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                        != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1001);
+                }
+            }
+        }
     }
 }
