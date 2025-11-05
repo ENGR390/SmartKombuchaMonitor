@@ -28,7 +28,7 @@ public final class TemperatureAlert {
             return new Result(Level.LETHAL, "Lethal (>90°F)", "Risk of SCOBY death. Cool down immediately!", Color.parseColor("#B71C1C"));
         }
         if (tempF < 65f || tempF > 85f) {
-            return new Result(Level.CRITICAL, "Critical (<65°F or >85°F)", "Outside safe range. Adjust ASAP.", Color.parseColor("#D32F2F"));
+            return new Result(Level.CRITICAL, "Critical (<65°F or >85°F)", "Outside safe range. Adjust the range to be between 65°F and 85°F.", Color.parseColor("#D32F2F"));
         }
         if ((tempF >= 65f && tempF < 75f) || (tempF >= 80f && tempF <= 85f)) {
             return new Result(Level.WARNING, "Warning (65–75°F or 80–85°F)", "Not ideal. Aim for 75–80°F.", Color.parseColor("#F57C00"));
