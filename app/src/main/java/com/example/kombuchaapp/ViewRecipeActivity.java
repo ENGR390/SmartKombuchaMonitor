@@ -206,11 +206,19 @@ public class ViewRecipeActivity extends AppCompatActivity {
         List<String> xLabels = new ArrayList<>();
 
         SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-        SimpleDateFormat outputFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+        SimpleDateFormat outputFormat = new SimpleDateFormat("MM/dd HH:mm", Locale.getDefault());
+
+        float minTemp = Float.MAX_VALUE;
+        float maxTemp = Float.MIN_VALUE;
 
         for (int i = 0; i < readings.size(); i++) {
             SensorReadings reading = readings.get(i);
-            tempEntries.add(new Entry(i, reading.getTemperature_c()));
+            float temp = reading.getTemperature_c();
+            tempEntries.add(new Entry(i, temp));
+
+            // Track min/max for Y-axis
+            minTemp = Math.min(minTemp, temp);
+            maxTemp = Math.max(maxTemp, temp);
 
             // Format timestamp for X-axis label
             try {
@@ -228,21 +236,71 @@ public class ViewRecipeActivity extends AppCompatActivity {
         // Configure X-axis with time labels
         XAxis xAxis = temperatureChart.getXAxis();
         xAxis.setValueFormatter(new IndexAxisValueFormatter(xLabels));
-        xAxis.setLabelCount(Math.min(xLabels.size(), 10)); // Show max 10 labels to avoid crowding
-        xAxis.setLabelRotationAngle(-45f); // Rotate labels for better readability
+
+        // Intelligently set label count based on number of data points
+        int dataPointCount = readings.size();
+        int labelCount;
+
+        if (dataPointCount <= 10) {
+            // Show all labels if 10 or fewer points
+            labelCount = dataPointCount;
+        } else if (dataPointCount <= 50) {
+            // Show every 5th label
+            labelCount = dataPointCount / 5;
+        } else if (dataPointCount <= 100) {
+            // Show every 10th label
+            labelCount = dataPointCount / 10;
+        } else {
+            // For very large datasets, show roughly 15-20 labels
+            labelCount = 15;
+        }
+
+        xAxis.setLabelCount(labelCount, false);
+        xAxis.setLabelRotationAngle(-45f);
+        // Allow granularity to be smaller than 1 for dense data
+        xAxis.setGranularity(1f);
+        xAxis.setGranularityEnabled(true);
+
+        // Configure Y-axis with dynamic range based on data
+        YAxis yAxis = temperatureChart.getAxisLeft();
+        // Add some padding (10%) above and below the data range
+        float range = maxTemp - minTemp;
+        float padding = range > 0 ? range * 0.1f : 1f; // At least 1 degree padding if all temps are the same
+        yAxis.setAxisMinimum(minTemp - padding);
+        yAxis.setAxisMaximum(maxTemp + padding);
 
         // Create dataset
         LineDataSet dataSet = new LineDataSet(tempEntries, "Temperature (°C)");
         dataSet.setColor(Color.BLUE);
         dataSet.setCircleColor(Color.BLUE);
         dataSet.setLineWidth(2f);
-        dataSet.setCircleRadius(3f);
-        dataSet.setDrawValues(false); // Don't show values on each point
-        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER); // Smooth curve
+
+        // Adjust circle size based on data density
+        if (dataPointCount > 50) {
+            dataSet.setCircleRadius(1.5f);
+            dataSet.setDrawCircles(true);
+        } else if (dataPointCount > 20) {
+            dataSet.setCircleRadius(2f);
+            dataSet.setDrawCircles(true);
+        } else {
+            dataSet.setCircleRadius(3f);
+            dataSet.setDrawCircles(true);
+        }
+
+        dataSet.setDrawValues(false);
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        dataSet.setCubicIntensity(0.2f); // Smoother curves for dense data
 
         // Update chart
         LineData lineData = new LineData(dataSet);
         temperatureChart.setData(lineData);
+
+        // Set visible range - show last 20 data points initially if there are many
+        if (dataPointCount > 20) {
+            temperatureChart.setVisibleXRangeMaximum(20);
+            temperatureChart.moveViewToX(dataPointCount - 1); // Move to most recent data
+        }
+
         temperatureChart.notifyDataSetChanged();
         temperatureChart.invalidate();
     }
