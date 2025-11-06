@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.example.kombuchaapp.models.Recipe;
+import com.example.kombuchaapp.models.SensorReadings;
 import com.example.kombuchaapp.repositories.RecipeRepository;
 import com.example.kombuchaapp.AlertAdapter;
 import com.example.kombuchaapp.TemperatureAlert;
@@ -29,14 +30,14 @@ import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -57,7 +58,6 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private View notesSection, flavorSection;
     private LineChart temperatureChart;
-    private List<String> tempXvalues;
 
     // Repository
     private RecipeRepository recipeRepository;
@@ -66,6 +66,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private Recipe currentRecipe;
 
     private ListenerRegistration readingsListener;
+    private ListenerRegistration chartReadingsListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,49 +102,148 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
         // Setup temperature chart
         setupTempChart();
+
+        // Load temperature readings
+        loadTemperatureReadings();
     }
 
     private void setupTempChart() {
-        Description description = new Description();
-        description.setText("Temperature Readings");
-        description.setPosition(150f, 15f);
-        temperatureChart.setDescription(description);
-        temperatureChart.getAxisRight().setDrawLabels(false);
+        // General Styling
+        temperatureChart.setBackgroundColor(Color.WHITE); // Set a background color
+        temperatureChart.setDrawGridBackground(false);
+        temperatureChart.setDrawBorders(false); // Remove chart border
 
-        tempXvalues = Arrays.asList("1", "2", "3", "4");
+        // Remove description
+        temperatureChart.getDescription().setEnabled(false);
 
+        // Enable touch gestures
+        temperatureChart.setTouchEnabled(true);
+        temperatureChart.setDragEnabled(true);
+        temperatureChart.setScaleEnabled(true);
+        temperatureChart.setPinchZoom(true);
+
+        // Customize Axes
         XAxis xAxis = temperatureChart.getXAxis();
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setValueFormatter(new IndexAxisValueFormatter(tempXvalues));
-        xAxis.setLabelCount(4);
         xAxis.setGranularity(1f);
+        xAxis.setDrawGridLines(false); // Hide vertical grid lines for a cleaner look
+        xAxis.setTextColor(Color.DKGRAY);
+        xAxis.setAxisLineColor(Color.DKGRAY);
 
-        YAxis yAxis = temperatureChart.getAxisLeft();
-        yAxis.setAxisMinimum(0f);
-        yAxis.setAxisMaximum(100f);
-        yAxis.setAxisLineColor(Color.BLACK);
-        yAxis.setLabelCount(10);
+        YAxis leftAxis = temperatureChart.getAxisLeft();
+        leftAxis.setLabelCount(10, true); // Set an approximate number of labels
+        leftAxis.setTextColor(Color.DKGRAY);
+        leftAxis.setAxisLineColor(Color.DKGRAY);
+        leftAxis.setDrawGridLines(true); // Keep horizontal grid lines
+        leftAxis.setGridColor(Color.LTGRAY); // Use a lighter color for grid lines
 
-        List<Entry> entries1 = new ArrayList<>();
-        entries1.add(new Entry(0, 10f));
-        entries1.add(new Entry(1, 10f));
-        entries1.add(new Entry(2, 15f));
-        entries1.add(new Entry(3, 45f));
+        // Hide the right axis completely
+        temperatureChart.getAxisRight().setEnabled(false);
 
-        List<Entry> entries2 = new ArrayList<>();
-        entries2.add(new Entry(0, 5f));
-        entries2.add(new Entry(1, 15f));
-        entries2.add(new Entry(2, 25f));
-        entries2.add(new Entry(3, 30f));
+        // Customize Legend
+        temperatureChart.getLegend().setEnabled(true);
+        temperatureChart.getLegend().setTextSize(12f);
+        temperatureChart.getLegend().setTextColor(Color.DKGRAY);
 
-        LineDataSet dataSet1 = new LineDataSet(entries1, "Temperature");
-        dataSet1.setColor(Color.BLUE);
+        temperatureChart.setNoDataText("Awaiting temperature readings...");
+        temperatureChart.invalidate();
+    }
 
-        LineDataSet dataSet2 = new LineDataSet(entries2, "Humidity");
-        dataSet2.setColor(Color.RED);
 
-        LineData lineData = new LineData(dataSet1, dataSet2);
+    private void loadTemperatureReadings() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Log.w(TAG, "Cannot load temperature readings: No user logged in.");
+            return;
+        }
+
+        // Stop previous listener if exists
+        if (chartReadingsListener != null) {
+            chartReadingsListener.remove();
+        }
+
+        // Listen to temperature readings for this recipe
+        chartReadingsListener = db.collection("users")
+                .document(user.getUid())
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("temperature_readings")
+                .orderBy("timestamp", Query.Direction.ASCENDING)
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null) {
+                        Log.e(TAG, "Error loading temperature readings", error);
+                        return;
+                    }
+
+                    if (snapshots == null || snapshots.isEmpty()) {
+                        // No data yet
+                        temperatureChart.clear();
+                        temperatureChart.setNoDataText("No temperature readings yet");
+                        temperatureChart.invalidate();
+                        return;
+                    }
+
+                    // Parse readings
+                    List<SensorReadings> readings = new ArrayList<>();
+                    for (QueryDocumentSnapshot doc : snapshots) {
+                        SensorReadings reading = doc.toObject(SensorReadings.class);
+                        readings.add(reading);
+                    }
+
+                    updateTemperatureChart(readings);
+                });
+    }
+
+    private void updateTemperatureChart(List<SensorReadings> readings) {
+        if (readings.isEmpty()) {
+            temperatureChart.clear();
+            temperatureChart.setNoDataText("No temperature readings yet");
+            temperatureChart.invalidate();
+            return;
+        }
+
+        List<Entry> tempEntries = new ArrayList<>();
+        List<String> xLabels = new ArrayList<>();
+
+        SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        SimpleDateFormat outputFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+
+        for (int i = 0; i < readings.size(); i++) {
+            SensorReadings reading = readings.get(i);
+            tempEntries.add(new Entry(i, reading.getTemperature_c()));
+
+            // Format timestamp for X-axis label
+            try {
+                Date date = inputFormat.parse(reading.getTimestamp());
+                if (date != null) {
+                    xLabels.add(outputFormat.format(date));
+                } else {
+                    xLabels.add(String.valueOf(i + 1));
+                }
+            } catch (ParseException e) {
+                xLabels.add(String.valueOf(i + 1));
+            }
+        }
+
+        // Configure X-axis with time labels
+        XAxis xAxis = temperatureChart.getXAxis();
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(xLabels));
+        xAxis.setLabelCount(Math.min(xLabels.size(), 10)); // Show max 10 labels to avoid crowding
+        xAxis.setLabelRotationAngle(-45f); // Rotate labels for better readability
+
+        // Create dataset
+        LineDataSet dataSet = new LineDataSet(tempEntries, "Temperature (°C)");
+        dataSet.setColor(Color.BLUE);
+        dataSet.setCircleColor(Color.BLUE);
+        dataSet.setLineWidth(2f);
+        dataSet.setCircleRadius(3f);
+        dataSet.setDrawValues(false); // Don't show values on each point
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER); // Smooth curve
+
+        // Update chart
+        LineData lineData = new LineData(dataSet);
         temperatureChart.setData(lineData);
+        temperatureChart.notifyDataSetChanged();
         temperatureChart.invalidate();
     }
 
@@ -525,9 +625,18 @@ public class ViewRecipeActivity extends AppCompatActivity {
     }
 
     private void deleteSensorReadings() {
-        // Delete all temperature readings for this recipe
-        db.collection("temperature_readings")
-                .whereEqualTo("recipe_id", recipeId)
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Log.w(TAG, "Cannot delete sensor readings: No user logged in.");
+            return;
+        }
+
+        // Delete all temperature readings for this recipe in the subcollection
+        db.collection("users")
+                .document(user.getUid())
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("temperature_readings")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     for (com.google.firebase.firestore.DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
@@ -654,6 +763,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
     protected void onStop() {
         super.onStop();
         stopReadingListener();
+        stopChartListener();
     }
 
     private void startReadingListener() {
@@ -683,6 +793,13 @@ public class ViewRecipeActivity extends AppCompatActivity {
             readingsListener = null;
         }
         AlertAdapter.resetDebounce();
+    }
+
+    private void stopChartListener() {
+        if (chartReadingsListener != null) {
+            chartReadingsListener.remove();
+            chartReadingsListener = null;
+        }
     }
 
     @Override
