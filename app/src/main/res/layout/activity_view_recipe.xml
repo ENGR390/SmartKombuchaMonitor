@@ -294,6 +294,39 @@
 
             </LinearLayout>
 
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="TEMPERATURE"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#D2691E"
+                android:layout_marginBottom="8dp"
+                android:letterSpacing="0.1" />
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Temperature Graph -->
+                    <com.github.mikephil.charting.charts.LineChart
+                        android:id="@+id/temperature_chart"
+                        android:layout_width="match_parent"
+                        android:layout_height="300dp"/>
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
             <!-- Dates Section -->
             <TextView
                 android:layout_width="match_parent"
