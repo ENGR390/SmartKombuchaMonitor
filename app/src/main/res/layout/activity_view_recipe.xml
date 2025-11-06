@@ -416,40 +416,105 @@
         android:id="@+id/action_buttons"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="16dp"
+        android:orientation="vertical"
+        android:padding="12dp"
         android:background="#FFFFFF"
         android:elevation="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <Button
-            android:id="@+id/btn_edit"
-            android:layout_width="0dp"
+        <!-- Top row - Primary actions -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Edit"
-            android:backgroundTint="#FF8C00"
-            android:layout_marginEnd="8dp" />
+            android:orientation="horizontal">
 
-        <Button
-            android:id="@+id/btn_start_brewing"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Start Brewing"
-            android:backgroundTint="#D2691E"
-            android:visibility="visible" />
+            <Button
+                android:id="@+id/btn_edit"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Edit"
+                android:backgroundTint="#FF8C00"
+                android:layout_marginEnd="4dp" />
 
-        <Button
-            android:id="@+id/btn_mark_completed"
-            android:layout_width="0dp"
+            <!-- Draft state: Start Brewing -->
+            <Button
+                android:id="@+id/btn_start_brewing"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Start Brewing"
+                android:backgroundTint="#D2691E"
+                android:layout_marginStart="4dp"
+                android:visibility="gone" />
+
+            <!-- Brewing state: Pause -->
+            <Button
+                android:id="@+id/btn_pause_brewing"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="⏸ Pause"
+                android:backgroundTint="#FF9800"
+                android:layout_marginStart="4dp"
+                android:visibility="gone" />
+
+            <!-- Paused state: Resume -->
+            <Button
+                android:id="@+id/btn_resume_brewing"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="▶ Resume"
+                android:backgroundTint="#4CAF50"
+                android:layout_marginStart="4dp"
+                android:visibility="gone" />
+
+            <!-- Completed state: Rebrew -->
+            <Button
+                android:id="@+id/btn_rebrew"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🔄 Rebrew"
+                android:backgroundTint="#4CAF50"
+                android:layout_marginStart="4dp"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- Second row - Secondary actions (only visible when brewing/paused) -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Mark Complete"
-            android:backgroundTint="#CD853F"
-            android:visibility="gone" />
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <!-- Brewing state: Complete button -->
+            <Button
+                android:id="@+id/btn_mark_completed"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="✓ Complete"
+                android:backgroundTint="#4CAF50"
+                android:layout_marginEnd="4dp"
+                android:visibility="gone" />
+
+            <!-- Brewing/Paused state: Back to Draft -->
+            <Button
+                android:id="@+id/btn_back_to_draft"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="← Back to Draft"
+                android:backgroundTint="#9E9E9E"
+                android:layout_marginStart="4dp"
+                android:visibility="gone" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

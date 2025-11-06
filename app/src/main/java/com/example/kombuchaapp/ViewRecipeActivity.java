@@ -9,6 +9,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
@@ -38,9 +39,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
     // UI Components
     private TextView tvRecipeName, tvStatus, tvTeaLeaf, tvWater, tvSugar, tvScoby,
             tvKombuchaStarter, tvFlavor, tvCreatedDate, tvBrewingStartDate,
-            tvCompletionDate, tvNotes;
-    private TextView tvTempAlert;
-    private Button btnEdit, btnStartBrewing, btnMarkCompleted;
+            tvCompletionDate, tvNotes, tvTempAlert;
+    private Button btnEdit, btnStartBrewing, btnMarkCompleted, btnPauseBrewing,
+            btnResumeBrewing, btnBackToDraft, btnRebrew;
     private ProgressBar progressBar;
     private View notesSection, flavorSection;
 
@@ -104,6 +105,10 @@ public class ViewRecipeActivity extends AppCompatActivity {
         btnEdit = findViewById(R.id.btn_edit);
         btnStartBrewing = findViewById(R.id.btn_start_brewing);
         btnMarkCompleted = findViewById(R.id.btn_mark_completed);
+        btnPauseBrewing = findViewById(R.id.btn_pause_brewing);
+        btnResumeBrewing = findViewById(R.id.btn_resume_brewing);
+        btnBackToDraft = findViewById(R.id.btn_back_to_draft);
+        btnRebrew = findViewById(R.id.btn_rebrew);
 
         notesSection = findViewById(R.id.notes_section);
         flavorSection = findViewById(R.id.flavor_section);
@@ -181,18 +186,33 @@ public class ViewRecipeActivity extends AppCompatActivity {
     }
 
     private void updateButtonsForStatus(String status) {
+        // Hide all action buttons first
+        btnStartBrewing.setVisibility(View.GONE);
+        btnPauseBrewing.setVisibility(View.GONE);
+        btnMarkCompleted.setVisibility(View.GONE);
+        btnResumeBrewing.setVisibility(View.GONE);
+        btnBackToDraft.setVisibility(View.GONE);
+        btnRebrew.setVisibility(View.GONE);
+
         switch (status.toLowerCase()) {
             case "draft":
+                // Draft: Can only start brewing
                 btnStartBrewing.setVisibility(View.VISIBLE);
-                btnMarkCompleted.setVisibility(View.GONE);
                 break;
             case "brewing":
-                btnStartBrewing.setVisibility(View.GONE);
+                // Brewing: Can pause, complete, or go back to draft
+                btnPauseBrewing.setVisibility(View.VISIBLE);
                 btnMarkCompleted.setVisibility(View.VISIBLE);
+                btnBackToDraft.setVisibility(View.VISIBLE);
+                break;
+            case "paused":
+                // Paused: Can resume or go back to draft
+                btnResumeBrewing.setVisibility(View.VISIBLE);
+                btnBackToDraft.setVisibility(View.VISIBLE);
                 break;
             case "completed":
-                btnStartBrewing.setVisibility(View.GONE);
-                btnMarkCompleted.setVisibility(View.GONE);
+                // Completed: Can rebrew
+                btnRebrew.setVisibility(View.VISIBLE);
                 break;
         }
     }
@@ -206,6 +226,10 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
         btnStartBrewing.setOnClickListener(v -> startBrewingProcess());
         btnMarkCompleted.setOnClickListener(v -> updateRecipeStatus("completed"));
+        btnPauseBrewing.setOnClickListener(v -> pauseBrewing());
+        btnResumeBrewing.setOnClickListener(v -> resumeBrewing());
+        btnBackToDraft.setOnClickListener(v -> confirmBackToDraft());
+        btnRebrew.setOnClickListener(v -> confirmRebrew());
     }
 
     private void startBrewingProcess() {
@@ -245,6 +269,214 @@ public class ViewRecipeActivity extends AppCompatActivity {
                 });
     }
 
+    private void pauseBrewing() {
+        showLoading(true);
+
+        // Remove from sensor control but keep the status as paused
+        removeRecipeForSensors();
+
+        // Update status to paused
+        recipeRepository.updateRecipeStatus(recipeId, "paused", new RecipeRepository.OnUpdateListener() {
+            @Override
+            public void onSuccess(String message) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(ViewRecipeActivity.this,
+                            "Brewing paused. Sensors deactivated.",
+                            Toast.LENGTH_SHORT).show();
+                    loadRecipe(); // Reload to update UI
+                });
+            }
+
+            @Override
+            public void onFailure(String error) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(ViewRecipeActivity.this,
+                            "Failed to pause: " + error,
+                            Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    private void resumeBrewing() {
+        showLoading(true);
+
+        // Check if another recipe is active
+        db.collection("sensor_control").document("active_config").get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        String activeRecipeId = documentSnapshot.getString("active_recipe_id");
+
+                        if (activeRecipeId != null && !activeRecipeId.equals(recipeId)) {
+                            runOnUiThread(() -> {
+                                showLoading(false);
+                                Toast.makeText(ViewRecipeActivity.this,
+                                        "Another recipe is already brewing. Please complete it first.",
+                                        Toast.LENGTH_LONG).show();
+                            });
+                            return;
+                        }
+                    }
+
+                    // Resume brewing - change status and reactivate sensors
+                    runOnUiThread(() -> updateRecipeStatus("brewing"));
+                })
+                .addOnFailureListener(e -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(ViewRecipeActivity.this,
+                                "Failed to check brewing status: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    });
+                });
+    }
+
+    private void confirmBackToDraft() {
+        new AlertDialog.Builder(this)
+                .setTitle("Back to Draft")
+                .setMessage("This will remove all sensor readings for this recipe. Are you sure?")
+                .setPositiveButton("Yes, Go Back", (dialog, which) -> backToDraft())
+                .setNegativeButton("Cancel", null)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
+    }
+
+    private void backToDraft() {
+        showLoading(true);
+
+        // First, delete all temperature readings for this recipe
+        deleteSensorReadings();
+
+        // Remove from sensor control
+        removeRecipeForSensors();
+
+        // Clear brewing dates and update status to draft
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("status", "draft");
+        updates.put("brewingStartDate", null);
+        updates.put("completionDate", null);
+
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            showLoading(false);
+            Toast.makeText(this, "Error: User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        db.collection("users").document(user.getUid())
+                .collection("Recipes").document(recipeId)
+                .update(updates)
+                .addOnSuccessListener(aVoid -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(ViewRecipeActivity.this,
+                                "Recipe moved back to draft. All sensor data deleted.",
+                                Toast.LENGTH_SHORT).show();
+                        loadRecipe();
+                    });
+                })
+                .addOnFailureListener(e -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(ViewRecipeActivity.this,
+                                "Failed to update status: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    });
+                });
+    }
+
+    private void confirmRebrew() {
+        new AlertDialog.Builder(this)
+                .setTitle("Rebrew Recipe")
+                .setMessage("This will restart brewing for this recipe. Previous completion date will be cleared.")
+                .setPositiveButton("Yes, Rebrew", (dialog, which) -> rebrew())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void rebrew() {
+        showLoading(true);
+
+        // Check if another recipe is active
+        db.collection("sensor_control").document("active_config").get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        String activeRecipeId = documentSnapshot.getString("active_recipe_id");
+
+                        if (activeRecipeId != null && !activeRecipeId.equals(recipeId)) {
+                            runOnUiThread(() -> {
+                                showLoading(false);
+                                Toast.makeText(ViewRecipeActivity.this,
+                                        "Another recipe is already brewing. Please complete it first.",
+                                        Toast.LENGTH_LONG).show();
+                            });
+                            return;
+                        }
+                    }
+
+                    // Clear completion date and restart brewing
+                    Map<String, Object> updates = new HashMap<>();
+                    updates.put("status", "brewing");
+                    updates.put("brewingStartDate", Timestamp.now());
+                    updates.put("completionDate", null);
+
+                    FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                    if (user == null) {
+                        showLoading(false);
+                        Toast.makeText(ViewRecipeActivity.this, "Error: User not logged in", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    db.collection("users").document(user.getUid())
+                            .collection("Recipes").document(recipeId)
+                            .update(updates)
+                            .addOnSuccessListener(aVoid -> {
+                                runOnUiThread(() -> {
+                                    addRecipeForSensors();
+                                    showLoading(false);
+                                    Toast.makeText(ViewRecipeActivity.this,
+                                            "Brewing restarted!",
+                                            Toast.LENGTH_SHORT).show();
+                                    loadRecipe();
+                                });
+                            })
+                            .addOnFailureListener(e -> {
+                                runOnUiThread(() -> {
+                                    showLoading(false);
+                                    Toast.makeText(ViewRecipeActivity.this,
+                                            "Failed to restart brewing: " + e.getMessage(),
+                                            Toast.LENGTH_SHORT).show();
+                                });
+                            });
+                })
+                .addOnFailureListener(e -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(ViewRecipeActivity.this,
+                                "Failed to check brewing status: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    });
+                });
+    }
+
+    private void deleteSensorReadings() {
+        // Delete all temperature readings for this recipe
+        db.collection("temperature_readings")
+                .whereEqualTo("recipe_id", recipeId)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    for (com.google.firebase.firestore.DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
+                        doc.getReference().delete();
+                    }
+                    Log.d(TAG, "Deleted sensor readings for recipe: " + recipeId);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to delete sensor readings", e);
+                });
+    }
+
     private void updateRecipeStatus(String newStatus) {
         showLoading(true);
 
@@ -263,7 +495,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
                         stopReadingListener();
                         tvTempAlert.setVisibility(View.GONE);
                     }
-                    
+
                     showLoading(false);
                     Toast.makeText(ViewRecipeActivity.this, message, Toast.LENGTH_SHORT).show();
                     loadRecipe(); // Reload to update UI
@@ -299,15 +531,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
                 .update(updates)
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Active recipe and user removed from sensor_control.");
-                    Toast.makeText(ViewRecipeActivity.this,
-                            "Recipe deactivated for sensor readings.",
-                            Toast.LENGTH_SHORT).show();
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Failed to remove active recipe from sensor_control", e);
-                    Toast.makeText(ViewRecipeActivity.this,
-                            "Warning: Could not deactivate sensors: " + e.getMessage(),
-                            Toast.LENGTH_LONG).show();
                 });
     }
 
