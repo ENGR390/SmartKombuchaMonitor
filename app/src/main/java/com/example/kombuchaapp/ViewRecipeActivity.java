@@ -1,6 +1,7 @@
 package com.example.kombuchaapp;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -17,6 +18,14 @@ import com.example.kombuchaapp.models.Recipe;
 import com.example.kombuchaapp.repositories.RecipeRepository;
 import com.example.kombuchaapp.AlertAdapter;
 import com.example.kombuchaapp.TemperatureAlert;
+import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.Description;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -26,8 +35,11 @@ import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -44,6 +56,8 @@ public class ViewRecipeActivity extends AppCompatActivity {
             btnResumeBrewing, btnBackToDraft, btnRebrew;
     private ProgressBar progressBar;
     private View notesSection, flavorSection;
+    private LineChart temperatureChart;
+    private List<String> tempXvalues;
 
     // Repository
     private RecipeRepository recipeRepository;
@@ -84,6 +98,53 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
         // Setup button listeners
         setupButtons();
+
+        // Setup temperature chart
+        setupTempChart();
+    }
+
+    private void setupTempChart() {
+        Description description = new Description();
+        description.setText("Temperature Readings");
+        description.setPosition(150f, 15f);
+        temperatureChart.setDescription(description);
+        temperatureChart.getAxisRight().setDrawLabels(false);
+
+        tempXvalues = Arrays.asList("1", "2", "3", "4");
+
+        XAxis xAxis = temperatureChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(tempXvalues));
+        xAxis.setLabelCount(4);
+        xAxis.setGranularity(1f);
+
+        YAxis yAxis = temperatureChart.getAxisLeft();
+        yAxis.setAxisMinimum(0f);
+        yAxis.setAxisMaximum(100f);
+        yAxis.setAxisLineColor(Color.BLACK);
+        yAxis.setLabelCount(10);
+
+        List<Entry> entries1 = new ArrayList<>();
+        entries1.add(new Entry(0, 10f));
+        entries1.add(new Entry(1, 10f));
+        entries1.add(new Entry(2, 15f));
+        entries1.add(new Entry(3, 45f));
+
+        List<Entry> entries2 = new ArrayList<>();
+        entries2.add(new Entry(0, 5f));
+        entries2.add(new Entry(1, 15f));
+        entries2.add(new Entry(2, 25f));
+        entries2.add(new Entry(3, 30f));
+
+        LineDataSet dataSet1 = new LineDataSet(entries1, "Temperature");
+        dataSet1.setColor(Color.BLUE);
+
+        LineDataSet dataSet2 = new LineDataSet(entries2, "Humidity");
+        dataSet2.setColor(Color.RED);
+
+        LineData lineData = new LineData(dataSet1, dataSet2);
+        temperatureChart.setData(lineData);
+        temperatureChart.invalidate();
     }
 
     private void initViews() {
@@ -112,6 +173,8 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
         notesSection = findViewById(R.id.notes_section);
         flavorSection = findViewById(R.id.flavor_section);
+
+        temperatureChart = findViewById(R.id.temperature_chart);
     }
 
     private void loadRecipe() {
