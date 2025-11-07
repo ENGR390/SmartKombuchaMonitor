@@ -17,6 +17,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import com.example.kombuchaapp.models.SensorReadings;
+import com.example.kombuchaapp.FizzLoaderAdapter;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -33,6 +34,8 @@ public class AllSensorReadingsActivity extends AppCompatActivity {
     private FirebaseFirestore db;
     private List<SensorReadings> sensorReadingsList;
     private ArrayAdapter<SensorReadings> adapter;
+
+    private FizzLoaderAdapter.Controller loader;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,6 +69,14 @@ public class AllSensorReadingsActivity extends AppCompatActivity {
                 android.R.id.text1, sensorReadingsList);
         listView.setAdapter(adapter);
 
+        loader = FizzLoaderAdapter.attach(this);
+        loader.setBlockTouches(true);
+        loader.setDimAmount(0.35f);
+        loader.setLoaderSizeDp(200);
+        loader.setBlurRadiusDp(20f);
+        loader.setBlurDownscale(0.22f);
+        loader.setDesaturate(true);
+
         // Load data from Firestore
         loadSensorReadings();
     }
@@ -74,11 +85,13 @@ public class AllSensorReadingsActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
         listView.setVisibility(View.GONE);
         emptyTextView.setVisibility(View.GONE);
+        if (loader != null) loader.show();
 
         db.collection("temperature_readings")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     progressBar.setVisibility(View.GONE);
+                    if (loader != null) loader.hide();
 
                     sensorReadingsList.clear();
 
@@ -110,10 +123,17 @@ public class AllSensorReadingsActivity extends AppCompatActivity {
                 })
                 .addOnFailureListener(e -> {
                     progressBar.setVisibility(View.GONE);
+                    if (loader != null) loader.hide();
                     emptyTextView.setVisibility(View.VISIBLE);
                     Log.e(TAG, "Error loading sensor readings", e);
                     Toast.makeText(this, "Error loading data: " + e.getMessage(),
                             Toast.LENGTH_SHORT).show();
                 });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (loader != null && loader.isShowing()) loader.hide();
     }
 }
