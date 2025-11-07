@@ -30,7 +30,7 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
 
     private static final String TAG = "MainActivity";
 
-    Button newRecipeButton, logoutButton, sensorReadingsButton;
+    Button newRecipeButton, logoutButton;
     ImageButton settingsButton;
     RecyclerView recipesRecyclerView;
     TextView emptyStateText;
@@ -61,7 +61,6 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
         newRecipeButton = findViewById(R.id.NewRecipeButton);
         settingsButton = findViewById(R.id.SettingsButton);
         logoutButton = findViewById(R.id.LogoutButton);
-        sensorReadingsButton = findViewById(R.id.sensorReadingsButton);
 
         // Initialize new recipe list components
         recipesRecyclerView = findViewById(R.id.recipesRecyclerView);
@@ -82,11 +81,6 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
 
         settingsButton.setOnClickListener(v -> {
             showSettingsMenu(v);
-        });
-
-        sensorReadingsButton.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, AllSensorReadingsActivity.class);
-            startActivity(intent);
         });
 
         logoutButton.setOnClickListener(v -> {
