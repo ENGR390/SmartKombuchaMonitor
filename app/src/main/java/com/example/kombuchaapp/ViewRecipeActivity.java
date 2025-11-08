@@ -17,10 +17,7 @@ import androidx.appcompat.widget.Toolbar;
 import com.example.kombuchaapp.models.Recipe;
 import com.example.kombuchaapp.models.SensorReadings;
 import com.example.kombuchaapp.repositories.RecipeRepository;
-import com.example.kombuchaapp.AlertAdapter;
-import com.example.kombuchaapp.TemperatureAlert;
 import com.github.mikephil.charting.charts.LineChart;
-import com.github.mikephil.charting.components.Description;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.Entry;
@@ -57,7 +54,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
             btnResumeBrewing, btnBackToDraft, btnRebrew;
     private ProgressBar progressBar;
     private View notesSection, flavorSection;
-    private LineChart temperatureChart;
+    private LineChart temperatureChart, phChart;
 
     // Repository
     private RecipeRepository recipeRepository;
@@ -66,7 +63,8 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private Recipe currentRecipe;
 
     private ListenerRegistration readingsListener;
-    private ListenerRegistration chartReadingsListener;
+    private ListenerRegistration tempReadingsListener;
+    private ListenerRegistration phReadingsListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,209 +98,13 @@ public class ViewRecipeActivity extends AppCompatActivity {
         // Setup button listeners
         setupButtons();
 
-        // Setup temperature chart
+        // Setup temperature and pH chart
         setupTempChart();
+        setupPhChart();
 
-        // Load temperature readings
+        // Load temperature and pH readings
         loadTemperatureReadings();
-    }
-
-    private void setupTempChart() {
-        // General Styling
-        temperatureChart.setBackgroundColor(Color.WHITE); // Set a background color
-        temperatureChart.setDrawGridBackground(false);
-        temperatureChart.setDrawBorders(false); // Remove chart border
-
-        // Remove description
-        temperatureChart.getDescription().setEnabled(false);
-
-        // Enable touch gestures
-        temperatureChart.setTouchEnabled(true);
-        temperatureChart.setDragEnabled(true);
-        temperatureChart.setScaleEnabled(true);
-        temperatureChart.setPinchZoom(true);
-
-        // Customize Axes
-        XAxis xAxis = temperatureChart.getXAxis();
-        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setGranularity(1f);
-        xAxis.setDrawGridLines(false); // Hide vertical grid lines for a cleaner look
-        xAxis.setTextColor(Color.DKGRAY);
-        xAxis.setAxisLineColor(Color.DKGRAY);
-
-        YAxis leftAxis = temperatureChart.getAxisLeft();
-        leftAxis.setLabelCount(10, true); // Set an approximate number of labels
-        leftAxis.setTextColor(Color.DKGRAY);
-        leftAxis.setAxisLineColor(Color.DKGRAY);
-        leftAxis.setDrawGridLines(true); // Keep horizontal grid lines
-        leftAxis.setGridColor(Color.LTGRAY); // Use a lighter color for grid lines
-
-        // Hide the right axis completely
-        temperatureChart.getAxisRight().setEnabled(false);
-
-        // Customize Legend
-        temperatureChart.getLegend().setEnabled(true);
-        temperatureChart.getLegend().setTextSize(12f);
-        temperatureChart.getLegend().setTextColor(Color.DKGRAY);
-
-        temperatureChart.setNoDataText("Awaiting temperature readings...");
-        temperatureChart.invalidate();
-    }
-
-
-    private void loadTemperatureReadings() {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) {
-            Log.w(TAG, "Cannot load temperature readings: No user logged in.");
-            return;
-        }
-
-        // Stop previous listener if exists
-        if (chartReadingsListener != null) {
-            chartReadingsListener.remove();
-        }
-
-        // Listen to temperature readings for this recipe
-        chartReadingsListener = db.collection("users")
-                .document(user.getUid())
-                .collection("Recipes")
-                .document(recipeId)
-                .collection("temperature_readings")
-                .orderBy("timestamp", Query.Direction.ASCENDING)
-                .addSnapshotListener((snapshots, error) -> {
-                    if (error != null) {
-                        Log.e(TAG, "Error loading temperature readings", error);
-                        return;
-                    }
-
-                    if (snapshots == null || snapshots.isEmpty()) {
-                        // No data yet
-                        temperatureChart.clear();
-                        temperatureChart.setNoDataText("No temperature readings yet");
-                        temperatureChart.invalidate();
-                        return;
-                    }
-
-                    // Parse readings
-                    List<SensorReadings> readings = new ArrayList<>();
-                    for (QueryDocumentSnapshot doc : snapshots) {
-                        SensorReadings reading = doc.toObject(SensorReadings.class);
-                        readings.add(reading);
-                    }
-
-                    updateTemperatureChart(readings);
-                });
-    }
-
-    private void updateTemperatureChart(List<SensorReadings> readings) {
-        if (readings.isEmpty()) {
-            temperatureChart.clear();
-            temperatureChart.setNoDataText("No temperature readings yet");
-            temperatureChart.invalidate();
-            return;
-        }
-
-        List<Entry> tempEntries = new ArrayList<>();
-        List<String> xLabels = new ArrayList<>();
-
-        SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-        SimpleDateFormat outputFormat = new SimpleDateFormat("MM/dd HH:mm", Locale.getDefault());
-
-        float minTemp = Float.MAX_VALUE;
-        float maxTemp = Float.MIN_VALUE;
-
-        for (int i = 0; i < readings.size(); i++) {
-            SensorReadings reading = readings.get(i);
-            float temp = reading.getTemperature_c();
-            tempEntries.add(new Entry(i, temp));
-
-            // Track min/max for Y-axis
-            minTemp = Math.min(minTemp, temp);
-            maxTemp = Math.max(maxTemp, temp);
-
-            // Format timestamp for X-axis label
-            try {
-                Date date = inputFormat.parse(reading.getTimestamp());
-                if (date != null) {
-                    xLabels.add(outputFormat.format(date));
-                } else {
-                    xLabels.add(String.valueOf(i + 1));
-                }
-            } catch (ParseException e) {
-                xLabels.add(String.valueOf(i + 1));
-            }
-        }
-
-        // Configure X-axis with time labels
-        XAxis xAxis = temperatureChart.getXAxis();
-        xAxis.setValueFormatter(new IndexAxisValueFormatter(xLabels));
-
-        // Intelligently set label count based on number of data points
-        int dataPointCount = readings.size();
-        int labelCount;
-
-        if (dataPointCount <= 10) {
-            // Show all labels if 10 or fewer points
-            labelCount = dataPointCount;
-        } else if (dataPointCount <= 50) {
-            // Show every 5th label
-            labelCount = dataPointCount / 5;
-        } else if (dataPointCount <= 100) {
-            // Show every 10th label
-            labelCount = dataPointCount / 10;
-        } else {
-            // For very large datasets, show roughly 15-20 labels
-            labelCount = 15;
-        }
-
-        xAxis.setLabelCount(labelCount, false);
-        xAxis.setLabelRotationAngle(-45f);
-        // Allow granularity to be smaller than 1 for dense data
-        xAxis.setGranularity(1f);
-        xAxis.setGranularityEnabled(true);
-
-        // Configure Y-axis with dynamic range based on data
-        YAxis yAxis = temperatureChart.getAxisLeft();
-        // Add some padding (10%) above and below the data range
-        float range = maxTemp - minTemp;
-        float padding = range > 0 ? range * 0.1f : 1f; // At least 1 degree padding if all temps are the same
-        yAxis.setAxisMinimum(minTemp - padding);
-        yAxis.setAxisMaximum(maxTemp + padding);
-
-        // Create dataset
-        LineDataSet dataSet = new LineDataSet(tempEntries, "Temperature (°C)");
-        dataSet.setColor(Color.BLUE);
-        dataSet.setCircleColor(Color.BLUE);
-        dataSet.setLineWidth(2f);
-
-        // Adjust circle size based on data density
-        if (dataPointCount > 50) {
-            dataSet.setCircleRadius(1.5f);
-            dataSet.setDrawCircles(true);
-        } else if (dataPointCount > 20) {
-            dataSet.setCircleRadius(2f);
-            dataSet.setDrawCircles(true);
-        } else {
-            dataSet.setCircleRadius(3f);
-            dataSet.setDrawCircles(true);
-        }
-
-        dataSet.setDrawValues(false);
-        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
-        dataSet.setCubicIntensity(0.2f); // Smoother curves for dense data
-
-        // Update chart
-        LineData lineData = new LineData(dataSet);
-        temperatureChart.setData(lineData);
-
-        // Set visible range - show last 20 data points initially if there are many
-        if (dataPointCount > 20) {
-            temperatureChart.setVisibleXRangeMaximum(20);
-            temperatureChart.moveViewToX(dataPointCount - 1); // Move to most recent data
-        }
-
-        temperatureChart.notifyDataSetChanged();
-        temperatureChart.invalidate();
+        loadPhReadings();
     }
 
     private void initViews() {
@@ -333,6 +135,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         flavorSection = findViewById(R.id.flavor_section);
 
         temperatureChart = findViewById(R.id.temperature_chart);
+        phChart = findViewById(R.id.ph_chart);
     }
 
     private void loadRecipe() {
@@ -853,10 +656,405 @@ public class ViewRecipeActivity extends AppCompatActivity {
         AlertAdapter.resetDebounce();
     }
 
+    private void setupTempChart() {
+        // General Styling
+        temperatureChart.setBackgroundColor(Color.WHITE); // Set a background color
+        temperatureChart.setDrawGridBackground(false);
+        temperatureChart.setDrawBorders(false); // Remove chart border
+
+        // Remove description
+        temperatureChart.getDescription().setEnabled(false);
+
+        // Enable touch gestures
+        temperatureChart.setTouchEnabled(true);
+        temperatureChart.setDragEnabled(true);
+        temperatureChart.setScaleEnabled(true);
+        temperatureChart.setPinchZoom(true);
+
+        // Customize Axes
+        XAxis xAxis = temperatureChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setGranularity(1f);
+        xAxis.setDrawGridLines(false); // Hide vertical grid lines for a cleaner look
+        xAxis.setTextColor(Color.DKGRAY);
+        xAxis.setAxisLineColor(Color.DKGRAY);
+
+        YAxis leftAxis = temperatureChart.getAxisLeft();
+        leftAxis.setLabelCount(10, true); // Set an approximate number of labels
+        leftAxis.setTextColor(Color.DKGRAY);
+        leftAxis.setAxisLineColor(Color.DKGRAY);
+        leftAxis.setDrawGridLines(true); // Keep horizontal grid lines
+        leftAxis.setGridColor(Color.LTGRAY); // Use a lighter color for grid lines
+
+        // Hide the right axis completely
+        temperatureChart.getAxisRight().setEnabled(false);
+
+        // Customize Legend
+        temperatureChart.getLegend().setEnabled(true);
+        temperatureChart.getLegend().setTextSize(12f);
+        temperatureChart.getLegend().setTextColor(Color.DKGRAY);
+
+        temperatureChart.setNoDataText("Awaiting temperature readings...");
+        temperatureChart.invalidate();
+    }
+
+    private void loadTemperatureReadings() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Log.w(TAG, "Cannot load temperature readings: No user logged in.");
+            return;
+        }
+
+        // Stop previous listener if exists
+        if (tempReadingsListener != null) {
+            tempReadingsListener.remove();
+        }
+
+        // Listen to temperature readings for this recipe
+        tempReadingsListener = db.collection("users")
+                .document(user.getUid())
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("temperature_readings")
+                .orderBy("timestamp", Query.Direction.ASCENDING)
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null) {
+                        Log.e(TAG, "Error loading temperature readings", error);
+                        return;
+                    }
+
+                    if (snapshots == null || snapshots.isEmpty()) {
+                        // No data yet
+                        temperatureChart.clear();
+                        temperatureChart.setNoDataText("No temperature readings yet");
+                        temperatureChart.invalidate();
+                        return;
+                    }
+
+                    // Parse readings
+                    List<SensorReadings> readings = new ArrayList<>();
+                    for (QueryDocumentSnapshot doc : snapshots) {
+                        SensorReadings reading = doc.toObject(SensorReadings.class);
+                        readings.add(reading);
+                    }
+
+                    updateTemperatureChart(readings);
+                });
+    }
+
+    private void updateTemperatureChart(List<SensorReadings> readings) {
+        if (readings.isEmpty()) {
+            temperatureChart.clear();
+            temperatureChart.setNoDataText("No temperature readings yet");
+            temperatureChart.invalidate();
+            return;
+        }
+
+        List<Entry> tempEntries = new ArrayList<>();
+        List<String> xLabels = new ArrayList<>();
+
+        SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        SimpleDateFormat outputFormat = new SimpleDateFormat("MM/dd HH:mm", Locale.getDefault());
+
+        float minTemp = Float.MAX_VALUE;
+        float maxTemp = Float.MIN_VALUE;
+
+        for (int i = 0; i < readings.size(); i++) {
+            SensorReadings reading = readings.get(i);
+            float temp = reading.getTemperature_c();
+            tempEntries.add(new Entry(i, temp));
+
+            // Track min/max for Y-axis
+            minTemp = Math.min(minTemp, temp);
+            maxTemp = Math.max(maxTemp, temp);
+
+            // Format timestamp for X-axis label
+            try {
+                Date date = inputFormat.parse(reading.getTimestamp());
+                if (date != null) {
+                    xLabels.add(outputFormat.format(date));
+                } else {
+                    xLabels.add(String.valueOf(i + 1));
+                }
+            } catch (ParseException e) {
+                xLabels.add(String.valueOf(i + 1));
+            }
+        }
+
+        // Configure X-axis with time labels
+        XAxis xAxis = temperatureChart.getXAxis();
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(xLabels));
+
+        // Intelligently set label count based on number of data points
+        int dataPointCount = readings.size();
+        int labelCount;
+
+        if (dataPointCount <= 10) {
+            // Show all labels if 10 or fewer points
+            labelCount = dataPointCount;
+        } else if (dataPointCount <= 50) {
+            // Show every 5th label
+            labelCount = dataPointCount / 5;
+        } else if (dataPointCount <= 100) {
+            // Show every 10th label
+            labelCount = dataPointCount / 10;
+        } else {
+            // For very large datasets, show roughly 15-20 labels
+            labelCount = 15;
+        }
+
+        xAxis.setLabelCount(labelCount, false);
+        xAxis.setLabelRotationAngle(-45f);
+        // Allow granularity to be smaller than 1 for dense data
+        xAxis.setGranularity(1f);
+        xAxis.setGranularityEnabled(true);
+
+        // Configure Y-axis with dynamic range based on data
+        YAxis yAxis = temperatureChart.getAxisLeft();
+        // Add some padding (10%) above and below the data range
+        float range = maxTemp - minTemp;
+        float padding = range > 0 ? range * 0.1f : 1f; // At least 1 degree padding if all temps are the same
+        yAxis.setAxisMinimum(minTemp - padding);
+        yAxis.setAxisMaximum(maxTemp + padding);
+
+        // Create dataset
+        LineDataSet dataSet = new LineDataSet(tempEntries, "Temperature (°C)");
+        dataSet.setColor(Color.BLUE);
+        dataSet.setCircleColor(Color.BLUE);
+        dataSet.setCircleHoleColor(Color.BLACK);
+        dataSet.setLineWidth(2f);
+
+        // Adjust circle size based on data density
+        if (dataPointCount > 50) {
+            dataSet.setCircleRadius(1.5f);
+            dataSet.setDrawCircles(true);
+        } else if (dataPointCount > 20) {
+            dataSet.setCircleRadius(2f);
+            dataSet.setDrawCircles(true);
+        } else {
+            dataSet.setCircleRadius(3f);
+            dataSet.setDrawCircles(true);
+        }
+
+        dataSet.setDrawValues(false);
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        dataSet.setCubicIntensity(0.2f); // Smoother curves for dense data
+
+        // Update chart
+        LineData lineData = new LineData(dataSet);
+        temperatureChart.setData(lineData);
+
+        // Set visible range - show last 20 data points initially if there are many
+        if (dataPointCount > 20) {
+            temperatureChart.setVisibleXRangeMaximum(20);
+            temperatureChart.moveViewToX(dataPointCount - 1); // Move to most recent data
+        }
+
+        temperatureChart.notifyDataSetChanged();
+        temperatureChart.invalidate();
+    }
+
+    private void setupPhChart() {
+        // General Styling
+        phChart.setBackgroundColor(Color.WHITE);
+        phChart.setDrawGridBackground(false);
+        phChart.setDrawBorders(false);
+
+        // Remove description
+        phChart.getDescription().setEnabled(false);
+
+        // Enable touch gestures
+        phChart.setTouchEnabled(true);
+        phChart.setDragEnabled(true);
+        phChart.setScaleEnabled(true);
+        phChart.setPinchZoom(true);
+
+        // Customize Axes
+        XAxis xAxis = phChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setGranularity(1f);
+        xAxis.setDrawGridLines(false);
+        xAxis.setTextColor(Color.DKGRAY);
+        xAxis.setAxisLineColor(Color.DKGRAY);
+
+        YAxis leftAxis = phChart.getAxisLeft();
+        leftAxis.setLabelCount(10, true);
+        leftAxis.setTextColor(Color.DKGRAY);
+        leftAxis.setAxisLineColor(Color.DKGRAY);
+        leftAxis.setDrawGridLines(true);
+        leftAxis.setGridColor(Color.LTGRAY);
+
+        // Hide the right axis completely
+        phChart.getAxisRight().setEnabled(false);
+
+        // Customize Legend
+        phChart.getLegend().setEnabled(true);
+        phChart.getLegend().setTextSize(12f);
+        phChart.getLegend().setTextColor(Color.DKGRAY);
+
+        phChart.setNoDataText("Awaiting pH readings...");
+        phChart.invalidate();
+    }
+
+    private void loadPhReadings() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Log.w(TAG, "Cannot load pH readings: No user logged in.");
+            return;
+        }
+
+        // Stop previous listener if exists
+        if (phReadingsListener != null) {
+            phReadingsListener.remove();
+        }
+
+        // Listen to pH readings for this recipe
+        phReadingsListener = db.collection("users")
+                .document(user.getUid())
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("ph_readings")
+                .orderBy("timestamp", Query.Direction.ASCENDING)
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null) {
+                        Log.e(TAG, "Error loading pH readings", error);
+                        return;
+                    }
+
+                    if (snapshots == null || snapshots.isEmpty()) {
+                        // No data yet
+                        phChart.clear();
+                        phChart.setNoDataText("No pH readings yet");
+                        phChart.invalidate();
+                        return;
+                    }
+
+                    // Parse readings
+                    List<SensorReadings> readings = new ArrayList<>();
+                    for (QueryDocumentSnapshot doc : snapshots) {
+                        SensorReadings reading = doc.toObject(SensorReadings.class);
+                        readings.add(reading);
+                    }
+
+                    updatePhChart(readings);
+                });
+    }
+
+    private void updatePhChart(List<SensorReadings> readings) {
+        if (readings.isEmpty()) {
+            phChart.clear();
+            phChart.setNoDataText("No pH readings yet");
+            phChart.invalidate();
+            return;
+        }
+
+        List<Entry> phEntries = new ArrayList<>();
+        List<String> xLabels = new ArrayList<>();
+
+        SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        SimpleDateFormat outputFormat = new SimpleDateFormat("MM/dd HH:mm", Locale.getDefault());
+
+        float minPh = Float.MAX_VALUE;
+        float maxPh = Float.MIN_VALUE;
+
+        for (int i = 0; i < readings.size(); i++) {
+            SensorReadings reading = readings.get(i);
+            float ph = reading.getPh_value();
+            phEntries.add(new Entry(i, ph));
+
+            // Track min/max for Y-axis
+            minPh = Math.min(minPh, ph);
+            maxPh = Math.max(maxPh, ph);
+
+            // Format timestamp for X-axis label
+            try {
+                Date date = inputFormat.parse(reading.getTimestamp());
+                if (date != null) {
+                    xLabels.add(outputFormat.format(date));
+                } else {
+                    xLabels.add(String.valueOf(i + 1));
+                }
+            } catch (ParseException e) {
+                xLabels.add(String.valueOf(i + 1));
+            }
+        }
+
+        // Configure X-axis with time labels
+        XAxis xAxis = phChart.getXAxis();
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(xLabels));
+
+        // Intelligently set label count based on number of data points
+        int dataPointCount = readings.size();
+        int labelCount;
+
+        if (dataPointCount <= 10) {
+            labelCount = dataPointCount;
+        } else if (dataPointCount <= 50) {
+            labelCount = dataPointCount / 5;
+        } else if (dataPointCount <= 100) {
+            labelCount = dataPointCount / 10;
+        } else {
+            labelCount = 15;
+        }
+
+        xAxis.setLabelCount(labelCount, false);
+        xAxis.setLabelRotationAngle(-45f);
+        xAxis.setGranularity(1f);
+        xAxis.setGranularityEnabled(true);
+
+        // Configure Y-axis with dynamic range based on data
+        YAxis yAxis = phChart.getAxisLeft();
+        // Add some padding (10%) above and below the data range
+        float range = maxPh - minPh;
+        float padding = range > 0 ? range * 0.1f : 0.5f; // At least 0.5 pH padding
+        yAxis.setAxisMinimum(minPh - padding);
+        yAxis.setAxisMaximum(maxPh + padding);
+
+        // Create dataset
+        LineDataSet dataSet = new LineDataSet(phEntries, "pH Value");
+        dataSet.setColor(Color.parseColor("#FF6B35"));
+        dataSet.setCircleColor(Color.parseColor("#FF6B35"));
+        dataSet.setCircleHoleColor(Color.BLACK);
+        dataSet.setLineWidth(2f);
+
+        // Adjust circle size based on data density
+        if (dataPointCount > 50) {
+            dataSet.setCircleRadius(1.5f);
+            dataSet.setDrawCircles(true);
+        } else if (dataPointCount > 20) {
+            dataSet.setCircleRadius(2f);
+            dataSet.setDrawCircles(true);
+        } else {
+            dataSet.setCircleRadius(3f);
+            dataSet.setDrawCircles(true);
+        }
+
+        dataSet.setDrawValues(false);
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        dataSet.setCubicIntensity(0.2f);
+
+        // Update chart
+        LineData lineData = new LineData(dataSet);
+        phChart.setData(lineData);
+
+        // Set visible range - show last 20 data points initially if there are many
+        if (dataPointCount > 20) {
+            phChart.setVisibleXRangeMaximum(20);
+            phChart.moveViewToX(dataPointCount - 1);
+        }
+
+        phChart.notifyDataSetChanged();
+        phChart.invalidate();
+    }
+
     private void stopChartListener() {
-        if (chartReadingsListener != null) {
-            chartReadingsListener.remove();
-            chartReadingsListener = null;
+        if (tempReadingsListener != null) {
+            tempReadingsListener.remove();
+            tempReadingsListener = null;
+        }
+        if (phReadingsListener != null) {
+            phReadingsListener.remove();
+            phReadingsListener = null;
         }
     }
 
