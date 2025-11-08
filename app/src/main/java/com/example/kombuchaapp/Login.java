@@ -32,12 +32,79 @@ public class Login extends AppCompatActivity {
     TextView mCreateBtn, forgotTextLink;
     FirebaseAuth fAuth;
 
-    private static final long INLINE_SPLASH_DURATION_MS = 650L;
+    private static final long SPLASH_DURATION_MS = 650L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        setContentView(R.layout.activity_login);
+
+        mEmail = findViewById(R.id.Email);
+        mPassword = findViewById(R.id.password);
+        mLoginBtn = findViewById(R.id.loginBtn);
+        mCreateBtn = findViewById(R.id.createText);
+        forgotTextLink = findViewById(R.id.forgotPassword);
+
+        fAuth = FirebaseAuth.getInstance();
+
+        if (fAuth.getCurrentUser() != null) {
+            showSplashThenGoToMain();
+            return;
+        }
+
+        mLoginBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String email = mEmail.getText().toString().trim();
+                String password = mPassword.getText().toString().trim();
+
+                if (TextUtils.isEmpty(email)) {
+                    mEmail.setError("Email is Required.");
+                    return;
+                }
+
+                if (TextUtils.isEmpty(password)) {
+                    mPassword.setError("Password is Required.");
+                    return;
+                }
+
+                if (password.length() < 6) {
+                    mPassword.setError("Password Must be >= 6 Characters");
+                    return;
+                }
+
+                fAuth.signInWithEmailAndPassword(email, password)
+                        .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+                            @Override
+                            public void onComplete(@NonNull Task<AuthResult> task) {
+                                if (task.isSuccessful()) {
+                                    Toast.makeText(Login.this, "Logged in Successfully", Toast.LENGTH_SHORT).show();
+                                    showSplashThenGoToMain();
+                                } else {
+                                    Toast.makeText(Login.this, "Error ! " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+            }
+        });
+
+        mCreateBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(getApplicationContext(), Register.class));
+            }
+        });
+
+        forgotTextLink.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(getApplicationContext(), ForgotPassword.class));
+            }
+        });
+    }
+
+    private void showSplashThenGoToMain() {
         FrameLayout splashRoot = new FrameLayout(this);
         splashRoot.setBackgroundColor(Color.parseColor("#F4B266"));
 
@@ -65,70 +132,9 @@ public class Login extends AppCompatActivity {
 
         setContentView(splashRoot);
 
-        fAuth = FirebaseAuth.getInstance();
-
         splashRoot.postDelayed(() -> {
-            if (fAuth.getCurrentUser() != null) {
-                startActivity(new Intent(getApplicationContext(), MainActivity.class));
-                finish();
-            } else {
-                setContentView(R.layout.activity_login);
-
-                mEmail = findViewById(R.id.Email);
-                mPassword = findViewById(R.id.password);
-                mLoginBtn = findViewById(R.id.loginBtn);
-                mCreateBtn = findViewById(R.id.createText);
-                forgotTextLink = findViewById(R.id.forgotPassword);
-
-                mLoginBtn.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        String email = mEmail.getText().toString().trim();
-                        String password = mPassword.getText().toString().trim();
-
-                        if (TextUtils.isEmpty(email)) {
-                            mEmail.setError("Email is Required.");
-                            return;
-                        }
-                        if (TextUtils.isEmpty(password)) {
-                            mPassword.setError("Password is Required.");
-                            return;
-                        }
-                        if (password.length() < 6) {
-                            mPassword.setError("Password Must be >= 6 Characters");
-                            return;
-                        }
-
-                        fAuth.signInWithEmailAndPassword(email, password)
-                                .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
-                                    @Override
-                                    public void onComplete(@NonNull Task<AuthResult> task) {
-                                        if (task.isSuccessful()) {
-                                            Toast.makeText(Login.this, "Logged in Successfully", Toast.LENGTH_SHORT).show();
-                                            startActivity(new Intent(getApplicationContext(), MainActivity.class));
-                                            finish();
-                                        } else {
-                                            Toast.makeText(Login.this, "Error ! " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
-                                        }
-                                    }
-                                });
-                    }
-                });
-
-                mCreateBtn.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        startActivity(new Intent(getApplicationContext(), Register.class));
-                    }
-                });
-
-                forgotTextLink.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        startActivity(new Intent(getApplicationContext(), ForgotPassword.class));
-                    }
-                });
-            }
-        }, INLINE_SPLASH_DURATION_MS);
+            startActivity(new Intent(getApplicationContext(), MainActivity.class));
+            finish();
+        }, SPLASH_DURATION_MS);
     }
 }
