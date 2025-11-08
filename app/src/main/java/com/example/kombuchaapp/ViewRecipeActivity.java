@@ -823,10 +823,8 @@ public class ViewRecipeActivity extends AppCompatActivity {
         stopReadingListener();
         stopChartListener();
     }
-
-    FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-
     private void startReadingListener() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         stopReadingListener();
         readingsListener = db.collection("users")
                 .document(user.getUid())
