@@ -824,10 +824,15 @@ public class ViewRecipeActivity extends AppCompatActivity {
         stopChartListener();
     }
 
+    FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+
     private void startReadingListener() {
         stopReadingListener();
-        readingsListener = db.collection("sensor_readings")
-                .whereEqualTo("recipe_id", recipeId)
+        readingsListener = db.collection("users")
+                .document(user.getUid())
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("temperature_readings")
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .limit(1)
                 .addSnapshotListener((snap, err) -> {
@@ -843,6 +848,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     tvTempAlert.setVisibility(View.VISIBLE);
                     tvTempAlert.setContentDescription("Temperature status: " + r.title);
                 });
+
     }
 
     private void stopReadingListener() {
