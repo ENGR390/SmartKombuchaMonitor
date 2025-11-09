@@ -69,8 +69,8 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private ListenerRegistration readingsListener;
     private ListenerRegistration tempReadingsListener;
     private ListenerRegistration phReadingsListener;
+    private ListenerRegistration phNotifyListener;
 
-    private ListenerRegistration phReadingsListener;
     private boolean hasHarvestNotified = false;
 
     @Override
@@ -681,6 +681,53 @@ public class ViewRecipeActivity extends AppCompatActivity {
             return;
         }
 
+        phNotifyListener = db.collection("users")
+                .document(user.getUid())
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("ph_readings")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(1)
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null || snapshots == null || snapshots.isEmpty()) {
+                        return;
+                    }
+
+                    Double phVal = snapshots.getDocuments().get(0).getDouble("ph_value");
+                    if (phVal == null) return;
+
+                    float ph = phVal.floatValue();
+
+                    if (currentRecipe != null
+                            && "brewing".equalsIgnoreCase(currentRecipe.getStatus())
+                            && !hasHarvestNotified
+                            && !Float.isNaN(ph)
+                            && Math.abs(ph - 3.0f) <= 0.05f) {
+
+                        hasHarvestNotified = true;
+
+                        String recipeName = (currentRecipe.getRecipeName() != null
+                                && !currentRecipe.getRecipeName().trim().isEmpty())
+                                ? currentRecipe.getRecipeName()
+                                : "Your kombucha";
+
+                        NotificationHelper.notifyReadyToHarvest(
+                                getApplicationContext(),
+                                recipeId,
+                                recipeName,
+                                ph
+                        );
+                    }
+                });
+    }
+
+    private void stopPhListener() {
+        if (phNotifyListener != null) {
+            phNotifyListener.remove();
+            phNotifyListener = null;
+        }
+    }
+
     private void setupTempChart() {
         // General Styling
         temperatureChart.setBackgroundColor(Color.WHITE); // Set a background color
@@ -945,38 +992,6 @@ public class ViewRecipeActivity extends AppCompatActivity {
                         Log.e(TAG, "Error loading pH readings", error);
                         return;
                     }
-                    if (snapshots == null || snapshots.isEmpty()) return;
-
-                    int lastIndex = snapshots.size() - 1;
-                    Double phVal = snapshots.getDocuments().get(lastIndex).getDouble("ph_value");
-                    if (phVal == null) return;
-
-                    float ph = phVal.floatValue();
-
-                    if (currentRecipe != null
-                            && "brewing".equalsIgnoreCase(currentRecipe.getStatus())
-                            && !hasHarvestNotified
-                            && !Float.isNaN(ph)
-                            && Math.abs(ph - 3.0f) <= 0.05f) {
-
-                        hasHarvestNotified = true;
-
-                        String recipeName = (currentRecipe.getRecipeName() != null
-                                && !currentRecipe.getRecipeName().trim().isEmpty())
-                                ? currentRecipe.getRecipeName()
-                                : "Your kombucha";
-
-                        NotificationHelper.notifyReadyToHarvest(
-                                getApplicationContext(),
-                                recipeId,
-                                recipeName,
-                                ph
-                        );
-                    }
-                });
-    }
-
-    private void stopPhListener() {
 
                     if (snapshots == null || snapshots.isEmpty()) {
                         // No data yet

@@ -28,6 +28,7 @@ import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 
 public class Login extends AppCompatActivity {
+
     EditText mEmail, mPassword;
     Button mLoginBtn;
     TextView mCreateBtn, forgotTextLink;
@@ -49,12 +50,8 @@ public class Login extends AppCompatActivity {
 
         fAuth = FirebaseAuth.getInstance();
 
+        // Ask notification permission once
         ensurePostNotificationsPermission();
-
-        // Check if user already logged in
-        if(fAuth.getCurrentUser() != null) {
-            startActivity(new Intent(getApplicationContext(), MainActivity.class));
-            finish();
         if (fAuth.getCurrentUser() != null) {
             showSplashThenGoToMain();
             return;
@@ -112,7 +109,7 @@ public class Login extends AppCompatActivity {
     }
 
     private void ensurePostNotificationsPermission() {
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
+        if (Build.VERSION.SDK_INT >= 33) {
             SharedPreferences sp = getSharedPreferences("kombucha_prefs", MODE_PRIVATE);
             boolean alreadyAsked = sp.getBoolean("asked_post_notifications_v1", false);
 
@@ -125,6 +122,8 @@ public class Login extends AppCompatActivity {
                 }
             }
         }
+    }
+
     private void showSplashThenGoToMain() {
         FrameLayout splashRoot = new FrameLayout(this);
         splashRoot.setBackgroundColor(Color.parseColor("#F4B266"));
