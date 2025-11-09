@@ -254,7 +254,7 @@
                 android:text="Save Recipe"
                 android:textSize="16sp"
                 android:padding="16dp"
-                android:backgroundTint="#FF6D00" />
+                android:backgroundTint="#FF8C00" />
 
             <ProgressBar
                 android:id="@+id/progressBar"
