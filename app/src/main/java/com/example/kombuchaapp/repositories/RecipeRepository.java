@@ -243,9 +243,10 @@ public class RecipeRepository {
 
         String userId = user.getUid();
         
-        // Counter to track deletion completion
-        final int[] deletionCount = {0};
-        final int[] failureCount = {0};
+        // Track completion of both subcollection deletions
+        final boolean[] tempComplete = {false};
+        final boolean[] phComplete = {false};
+        final boolean[] hasError = {false};
         
         // Delete temperature readings
         fStore.collection("users")
@@ -256,22 +257,45 @@ public class RecipeRepository {
                 .get()
                 .addOnSuccessListener(tempSnapshots -> {
                     if (tempSnapshots.isEmpty()) {
-                        deletionCount[0]++;
-                        checkDeletionComplete(deletionCount, failureCount, listener);
+                        Log.d(TAG, "No temperature readings to delete");
+                        tempComplete[0] = true;
+                        checkSubcollectionDeletionComplete(tempComplete, phComplete, hasError, listener);
                     } else {
+                        int totalDocs = tempSnapshots.size();
+                        final int[] deletedCount = {0};
+                        
+                        Log.d(TAG, "Deleting " + totalDocs + " temperature readings");
+                        
                         for (DocumentSnapshot doc : tempSnapshots.getDocuments()) {
                             doc.getReference().delete()
-                                    .addOnSuccessListener(aVoid -> Log.d(TAG, "Deleted temp reading"))
-                                    .addOnFailureListener(e -> Log.e(TAG, "Failed to delete temp reading", e));
+                                    .addOnSuccessListener(aVoid -> {
+                                        deletedCount[0]++;
+                                        Log.d(TAG, "Deleted temp reading " + deletedCount[0] + "/" + totalDocs);
+                                        
+                                        if (deletedCount[0] == totalDocs) {
+                                            tempComplete[0] = true;
+                                            Log.d(TAG, "All temperature readings deleted");
+                                            checkSubcollectionDeletionComplete(tempComplete, phComplete, hasError, listener);
+                                        }
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Log.e(TAG, "Failed to delete temp reading", e);
+                                        hasError[0] = true;
+                                        deletedCount[0]++;
+                                        
+                                        if (deletedCount[0] == totalDocs) {
+                                            tempComplete[0] = true;
+                                            checkSubcollectionDeletionComplete(tempComplete, phComplete, hasError, listener);
+                                        }
+                                    });
                         }
-                        deletionCount[0]++;
-                        checkDeletionComplete(deletionCount, failureCount, listener);
                     }
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Failed to fetch temperature readings", e);
-                    failureCount[0]++;
-                    checkDeletionComplete(deletionCount, failureCount, listener);
+                    hasError[0] = true;
+                    tempComplete[0] = true;
+                    checkSubcollectionDeletionComplete(tempComplete, phComplete, hasError, listener);
                 });
 
         // Delete pH readings
@@ -283,31 +307,57 @@ public class RecipeRepository {
                 .get()
                 .addOnSuccessListener(phSnapshots -> {
                     if (phSnapshots.isEmpty()) {
-                        deletionCount[0]++;
-                        checkDeletionComplete(deletionCount, failureCount, listener);
+                        Log.d(TAG, "No pH readings to delete");
+                        phComplete[0] = true;
+                        checkSubcollectionDeletionComplete(tempComplete, phComplete, hasError, listener);
                     } else {
+                        int totalDocs = phSnapshots.size();
+                        final int[] deletedCount = {0};
+                        
+                        Log.d(TAG, "Deleting " + totalDocs + " pH readings");
+                        
                         for (DocumentSnapshot doc : phSnapshots.getDocuments()) {
                             doc.getReference().delete()
-                                    .addOnSuccessListener(aVoid -> Log.d(TAG, "Deleted pH reading"))
-                                    .addOnFailureListener(e -> Log.e(TAG, "Failed to delete pH reading", e));
+                                    .addOnSuccessListener(aVoid -> {
+                                        deletedCount[0]++;
+                                        Log.d(TAG, "Deleted pH reading " + deletedCount[0] + "/" + totalDocs);
+                                        
+                                        if (deletedCount[0] == totalDocs) {
+                                            phComplete[0] = true;
+                                            Log.d(TAG, "All pH readings deleted");
+                                            checkSubcollectionDeletionComplete(tempComplete, phComplete, hasError, listener);
+                                        }
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Log.e(TAG, "Failed to delete pH reading", e);
+                                        hasError[0] = true;
+                                        deletedCount[0]++;
+                                        
+                                        if (deletedCount[0] == totalDocs) {
+                                            phComplete[0] = true;
+                                            checkSubcollectionDeletionComplete(tempComplete, phComplete, hasError, listener);
+                                        }
+                                    });
                         }
-                        deletionCount[0]++;
-                        checkDeletionComplete(deletionCount, failureCount, listener);
                     }
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Failed to fetch pH readings", e);
-                    failureCount[0]++;
-                    checkDeletionComplete(deletionCount, failureCount, listener);
+                    hasError[0] = true;
+                    phComplete[0] = true;
+                    checkSubcollectionDeletionComplete(tempComplete, phComplete, hasError, listener);
                 });
     }
 
-    private void checkDeletionComplete(int[] deletionCount, int[] failureCount, OnUpdateListener listener) {
-        // We're deleting 2 subcollections (temperature and pH)
-        if (deletionCount[0] + failureCount[0] >= 2) {
-            if (failureCount[0] > 0) {
+    private void checkSubcollectionDeletionComplete(boolean[] tempComplete, boolean[] phComplete, 
+                                                     boolean[] hasError, OnUpdateListener listener) {
+        // Only proceed when BOTH subcollections are completely deleted
+        if (tempComplete[0] && phComplete[0]) {
+            if (hasError[0]) {
+                Log.w(TAG, "Subcollections deleted with some errors");
                 listener.onFailure("Some sensor data could not be deleted");
             } else {
+                Log.d(TAG, "All subcollections deleted successfully");
                 listener.onSuccess("Subcollections deleted");
             }
         }
