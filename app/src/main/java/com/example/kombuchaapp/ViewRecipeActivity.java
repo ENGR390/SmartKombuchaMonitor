@@ -1,6 +1,7 @@
 package com.example.kombuchaapp;
 
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -9,26 +10,38 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.example.kombuchaapp.models.Recipe;
+import com.example.kombuchaapp.models.SensorReadings;
 import com.example.kombuchaapp.repositories.RecipeRepository;
 import com.example.kombuchaapp.AlertAdapter;
 import com.example.kombuchaapp.TemperatureAlert;
 import com.example.kombuchaapp.NotificationHelper;
 
+import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -40,11 +53,12 @@ public class ViewRecipeActivity extends AppCompatActivity {
     // UI Components
     private TextView tvRecipeName, tvStatus, tvTeaLeaf, tvWater, tvSugar, tvScoby,
             tvKombuchaStarter, tvFlavor, tvCreatedDate, tvBrewingStartDate,
-            tvCompletionDate, tvNotes;
-    private TextView tvTempAlert;
-    private Button btnEdit, btnStartBrewing, btnMarkCompleted;
+            tvCompletionDate, tvNotes, tvTempAlert;
+    private Button btnEdit, btnStartBrewing, btnMarkCompleted, btnPauseBrewing,
+            btnResumeBrewing, btnBackToDraft, btnRebrew;
     private ProgressBar progressBar;
     private View notesSection, flavorSection;
+    private LineChart temperatureChart, phChart;
 
     // Repository
     private RecipeRepository recipeRepository;
@@ -53,6 +67,8 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private Recipe currentRecipe;
 
     private ListenerRegistration readingsListener;
+    private ListenerRegistration tempReadingsListener;
+    private ListenerRegistration phReadingsListener;
 
     private ListenerRegistration phReadingsListener;
     private boolean hasHarvestNotified = false;
@@ -88,6 +104,14 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
         // Setup button listeners
         setupButtons();
+
+        // Setup temperature and pH chart
+        setupTempChart();
+        setupPhChart();
+
+        // Load temperature and pH readings
+        loadTemperatureReadings();
+        loadPhReadings();
     }
 
     private void initViews() {
@@ -109,9 +133,16 @@ public class ViewRecipeActivity extends AppCompatActivity {
         btnEdit = findViewById(R.id.btn_edit);
         btnStartBrewing = findViewById(R.id.btn_start_brewing);
         btnMarkCompleted = findViewById(R.id.btn_mark_completed);
+        btnPauseBrewing = findViewById(R.id.btn_pause_brewing);
+        btnResumeBrewing = findViewById(R.id.btn_resume_brewing);
+        btnBackToDraft = findViewById(R.id.btn_back_to_draft);
+        btnRebrew = findViewById(R.id.btn_rebrew);
 
         notesSection = findViewById(R.id.notes_section);
         flavorSection = findViewById(R.id.flavor_section);
+
+        temperatureChart = findViewById(R.id.temperature_chart);
+        phChart = findViewById(R.id.ph_chart);
     }
 
     private void loadRecipe() {
@@ -186,18 +217,33 @@ public class ViewRecipeActivity extends AppCompatActivity {
     }
 
     private void updateButtonsForStatus(String status) {
+        // Hide all action buttons first
+        btnStartBrewing.setVisibility(View.GONE);
+        btnPauseBrewing.setVisibility(View.GONE);
+        btnMarkCompleted.setVisibility(View.GONE);
+        btnResumeBrewing.setVisibility(View.GONE);
+        btnBackToDraft.setVisibility(View.GONE);
+        btnRebrew.setVisibility(View.GONE);
+
         switch (status.toLowerCase()) {
             case "draft":
+                // Draft: Can only start brewing
                 btnStartBrewing.setVisibility(View.VISIBLE);
-                btnMarkCompleted.setVisibility(View.GONE);
                 break;
             case "brewing":
-                btnStartBrewing.setVisibility(View.GONE);
+                // Brewing: Can pause, complete, or go back to draft
+                btnPauseBrewing.setVisibility(View.VISIBLE);
                 btnMarkCompleted.setVisibility(View.VISIBLE);
+                btnBackToDraft.setVisibility(View.VISIBLE);
+                break;
+            case "paused":
+                // Paused: Can resume or go back to draft
+                btnResumeBrewing.setVisibility(View.VISIBLE);
+                btnBackToDraft.setVisibility(View.VISIBLE);
                 break;
             case "completed":
-                btnStartBrewing.setVisibility(View.GONE);
-                btnMarkCompleted.setVisibility(View.GONE);
+                // Completed: Can rebrew
+                btnRebrew.setVisibility(View.VISIBLE);
                 break;
         }
     }
@@ -211,6 +257,10 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
         btnStartBrewing.setOnClickListener(v -> startBrewingProcess());
         btnMarkCompleted.setOnClickListener(v -> updateRecipeStatus("completed"));
+        btnPauseBrewing.setOnClickListener(v -> pauseBrewing());
+        btnResumeBrewing.setOnClickListener(v -> resumeBrewing());
+        btnBackToDraft.setOnClickListener(v -> confirmBackToDraft());
+        btnRebrew.setOnClickListener(v -> confirmRebrew());
     }
 
     private void startBrewingProcess() {
@@ -250,6 +300,223 @@ public class ViewRecipeActivity extends AppCompatActivity {
                 });
     }
 
+    private void pauseBrewing() {
+        showLoading(true);
+
+        // Remove from sensor control but keep the status as paused
+        removeRecipeForSensors();
+
+        // Update status to paused
+        recipeRepository.updateRecipeStatus(recipeId, "paused", new RecipeRepository.OnUpdateListener() {
+            @Override
+            public void onSuccess(String message) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(ViewRecipeActivity.this,
+                            "Brewing paused. Sensors deactivated.",
+                            Toast.LENGTH_SHORT).show();
+                    loadRecipe(); // Reload to update UI
+                });
+            }
+
+            @Override
+            public void onFailure(String error) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(ViewRecipeActivity.this,
+                            "Failed to pause: " + error,
+                            Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    private void resumeBrewing() {
+        showLoading(true);
+
+        // Check if another recipe is active
+        db.collection("sensor_control").document("active_config").get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        String activeRecipeId = documentSnapshot.getString("active_recipe_id");
+
+                        if (activeRecipeId != null && !activeRecipeId.equals(recipeId)) {
+                            runOnUiThread(() -> {
+                                showLoading(false);
+                                Toast.makeText(ViewRecipeActivity.this,
+                                        "Another recipe is already brewing. Please complete it first.",
+                                        Toast.LENGTH_LONG).show();
+                            });
+                            return;
+                        }
+                    }
+
+                    // Resume brewing - change status and reactivate sensors
+                    runOnUiThread(() -> updateRecipeStatus("brewing"));
+                })
+                .addOnFailureListener(e -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(ViewRecipeActivity.this,
+                                "Failed to check brewing status: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    });
+                });
+    }
+
+    private void confirmBackToDraft() {
+        new AlertDialog.Builder(this)
+                .setTitle("Back to Draft")
+                .setMessage("This will remove all sensor readings for this recipe. Are you sure?")
+                .setPositiveButton("Yes, Go Back", (dialog, which) -> backToDraft())
+                .setNegativeButton("Cancel", null)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
+    }
+
+    private void backToDraft() {
+        showLoading(true);
+
+        // First, delete all temperature readings for this recipe
+        deleteSensorReadings();
+
+        // Remove from sensor control
+        removeRecipeForSensors();
+
+        // Clear brewing dates and update status to draft
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("status", "draft");
+        updates.put("brewingStartDate", null);
+        updates.put("completionDate", null);
+
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            showLoading(false);
+            Toast.makeText(this, "Error: User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        db.collection("users").document(user.getUid())
+                .collection("Recipes").document(recipeId)
+                .update(updates)
+                .addOnSuccessListener(aVoid -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(ViewRecipeActivity.this,
+                                "Recipe moved back to draft. All sensor data deleted.",
+                                Toast.LENGTH_SHORT).show();
+                        loadRecipe();
+                    });
+                })
+                .addOnFailureListener(e -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(ViewRecipeActivity.this,
+                                "Failed to update status: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    });
+                });
+    }
+
+    private void confirmRebrew() {
+        new AlertDialog.Builder(this)
+                .setTitle("Rebrew Recipe")
+                .setMessage("This will restart brewing for this recipe. Previous completion date will be cleared.")
+                .setPositiveButton("Yes, Rebrew", (dialog, which) -> rebrew())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void rebrew() {
+        showLoading(true);
+
+        // Check if another recipe is active
+        db.collection("sensor_control").document("active_config").get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        String activeRecipeId = documentSnapshot.getString("active_recipe_id");
+
+                        if (activeRecipeId != null && !activeRecipeId.equals(recipeId)) {
+                            runOnUiThread(() -> {
+                                showLoading(false);
+                                Toast.makeText(ViewRecipeActivity.this,
+                                        "Another recipe is already brewing. Please complete it first.",
+                                        Toast.LENGTH_LONG).show();
+                            });
+                            return;
+                        }
+                    }
+
+                    // Clear completion date and restart brewing
+                    Map<String, Object> updates = new HashMap<>();
+                    updates.put("status", "brewing");
+                    updates.put("brewingStartDate", Timestamp.now());
+                    updates.put("completionDate", null);
+
+                    FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                    if (user == null) {
+                        showLoading(false);
+                        Toast.makeText(ViewRecipeActivity.this, "Error: User not logged in", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    db.collection("users").document(user.getUid())
+                            .collection("Recipes").document(recipeId)
+                            .update(updates)
+                            .addOnSuccessListener(aVoid -> {
+                                runOnUiThread(() -> {
+                                    addRecipeForSensors();
+                                    showLoading(false);
+                                    Toast.makeText(ViewRecipeActivity.this,
+                                            "Brewing restarted!",
+                                            Toast.LENGTH_SHORT).show();
+                                    loadRecipe();
+                                });
+                            })
+                            .addOnFailureListener(e -> {
+                                runOnUiThread(() -> {
+                                    showLoading(false);
+                                    Toast.makeText(ViewRecipeActivity.this,
+                                            "Failed to restart brewing: " + e.getMessage(),
+                                            Toast.LENGTH_SHORT).show();
+                                });
+                            });
+                })
+                .addOnFailureListener(e -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(ViewRecipeActivity.this,
+                                "Failed to check brewing status: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    });
+                });
+    }
+
+    private void deleteSensorReadings() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Log.w(TAG, "Cannot delete sensor readings: No user logged in.");
+            return;
+        }
+
+        // Delete all temperature readings for this recipe in the subcollection
+        db.collection("users")
+                .document(user.getUid())
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("temperature_readings")
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    for (com.google.firebase.firestore.DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
+                        doc.getReference().delete();
+                    }
+                    Log.d(TAG, "Deleted sensor readings for recipe: " + recipeId);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to delete sensor readings", e);
+                });
+    }
+
     private void updateRecipeStatus(String newStatus) {
         showLoading(true);
 
@@ -271,7 +538,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
                         stopPhListener();
                         tvTempAlert.setVisibility(View.GONE);
                     }
-                    
+
                     showLoading(false);
                     Toast.makeText(ViewRecipeActivity.this, message, Toast.LENGTH_SHORT).show();
                     loadRecipe(); // Reload to update UI
@@ -307,15 +574,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
                 .update(updates)
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Active recipe and user removed from sensor_control.");
-                    Toast.makeText(ViewRecipeActivity.this,
-                            "Recipe deactivated for sensor readings.",
-                            Toast.LENGTH_SHORT).show();
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Failed to remove active recipe from sensor_control", e);
-                    Toast.makeText(ViewRecipeActivity.this,
-                            "Warning: Could not deactivate sensors: " + e.getMessage(),
-                            Toast.LENGTH_LONG).show();
                 });
     }
 
@@ -375,8 +636,8 @@ public class ViewRecipeActivity extends AppCompatActivity {
         super.onStop();
         stopReadingListener();
         stopPhListener();
+        stopChartListener();
     }
-
     private void startReadingListener() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         stopReadingListener();
@@ -420,6 +681,259 @@ public class ViewRecipeActivity extends AppCompatActivity {
             return;
         }
 
+    private void setupTempChart() {
+        // General Styling
+        temperatureChart.setBackgroundColor(Color.WHITE); // Set a background color
+        temperatureChart.setDrawGridBackground(false);
+        temperatureChart.setDrawBorders(false); // Remove chart border
+
+        // Remove description
+        temperatureChart.getDescription().setEnabled(false);
+
+        // Enable touch gestures
+        temperatureChart.setTouchEnabled(true);
+        temperatureChart.setDragEnabled(true);
+        temperatureChart.setScaleEnabled(true);
+        temperatureChart.setPinchZoom(true);
+
+        // Customize Axes
+        XAxis xAxis = temperatureChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setGranularity(1f);
+        xAxis.setDrawGridLines(false); // Hide vertical grid lines for a cleaner look
+        xAxis.setTextColor(Color.DKGRAY);
+        xAxis.setAxisLineColor(Color.DKGRAY);
+
+        YAxis leftAxis = temperatureChart.getAxisLeft();
+        leftAxis.setLabelCount(10, true); // Set an approximate number of labels
+        leftAxis.setTextColor(Color.DKGRAY);
+        leftAxis.setAxisLineColor(Color.DKGRAY);
+        leftAxis.setDrawGridLines(true); // Keep horizontal grid lines
+        leftAxis.setGridColor(Color.LTGRAY); // Use a lighter color for grid lines
+
+        // Hide the right axis completely
+        temperatureChart.getAxisRight().setEnabled(false);
+
+        // Customize Legend
+        temperatureChart.getLegend().setEnabled(true);
+        temperatureChart.getLegend().setTextSize(12f);
+        temperatureChart.getLegend().setTextColor(Color.DKGRAY);
+
+        temperatureChart.setNoDataText("Awaiting temperature readings...");
+        temperatureChart.invalidate();
+    }
+
+    private void loadTemperatureReadings() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Log.w(TAG, "Cannot load temperature readings: No user logged in.");
+            return;
+        }
+
+        // Stop previous listener if exists
+        if (tempReadingsListener != null) {
+            tempReadingsListener.remove();
+        }
+
+        // Listen to temperature readings for this recipe
+        tempReadingsListener = db.collection("users")
+                .document(user.getUid())
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("temperature_readings")
+                .orderBy("timestamp", Query.Direction.ASCENDING)
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null) {
+                        Log.e(TAG, "Error loading temperature readings", error);
+                        return;
+                    }
+
+                    if (snapshots == null || snapshots.isEmpty()) {
+                        // No data yet
+                        temperatureChart.clear();
+                        temperatureChart.setNoDataText("No temperature readings yet");
+                        temperatureChart.invalidate();
+                        return;
+                    }
+
+                    // Parse readings
+                    List<SensorReadings> readings = new ArrayList<>();
+                    for (QueryDocumentSnapshot doc : snapshots) {
+                        SensorReadings reading = doc.toObject(SensorReadings.class);
+                        readings.add(reading);
+                    }
+
+                    updateTemperatureChart(readings);
+                });
+    }
+
+    private void updateTemperatureChart(List<SensorReadings> readings) {
+        if (readings.isEmpty()) {
+            temperatureChart.clear();
+            temperatureChart.setNoDataText("No temperature readings yet");
+            temperatureChart.invalidate();
+            return;
+        }
+
+        List<Entry> tempEntries = new ArrayList<>();
+        List<String> xLabels = new ArrayList<>();
+
+        SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        SimpleDateFormat outputFormat = new SimpleDateFormat("MM/dd HH:mm", Locale.getDefault());
+
+        float minTemp = Float.MAX_VALUE;
+        float maxTemp = Float.MIN_VALUE;
+
+        for (int i = 0; i < readings.size(); i++) {
+            SensorReadings reading = readings.get(i);
+            float temp = reading.getTemperature_c();
+            tempEntries.add(new Entry(i, temp));
+
+            // Track min/max for Y-axis
+            minTemp = Math.min(minTemp, temp);
+            maxTemp = Math.max(maxTemp, temp);
+
+            // Format timestamp for X-axis label
+            try {
+                Date date = inputFormat.parse(reading.getTimestamp());
+                if (date != null) {
+                    xLabels.add(outputFormat.format(date));
+                } else {
+                    xLabels.add(String.valueOf(i + 1));
+                }
+            } catch (ParseException e) {
+                xLabels.add(String.valueOf(i + 1));
+            }
+        }
+
+        // Configure X-axis with time labels
+        XAxis xAxis = temperatureChart.getXAxis();
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(xLabels));
+
+        // Intelligently set label count based on number of data points
+        int dataPointCount = readings.size();
+        int labelCount;
+
+        if (dataPointCount <= 10) {
+            // Show all labels if 10 or fewer points
+            labelCount = dataPointCount;
+        } else if (dataPointCount <= 50) {
+            // Show every 5th label
+            labelCount = dataPointCount / 5;
+        } else if (dataPointCount <= 100) {
+            // Show every 10th label
+            labelCount = dataPointCount / 10;
+        } else {
+            // For very large datasets, show roughly 15-20 labels
+            labelCount = 15;
+        }
+
+        xAxis.setLabelCount(labelCount, false);
+        xAxis.setLabelRotationAngle(-45f);
+        // Allow granularity to be smaller than 1 for dense data
+        xAxis.setGranularity(1f);
+        xAxis.setGranularityEnabled(true);
+
+        // Configure Y-axis with dynamic range based on data
+        YAxis yAxis = temperatureChart.getAxisLeft();
+        // Add some padding (10%) above and below the data range
+        float range = maxTemp - minTemp;
+        float padding = range > 0 ? range * 0.1f : 1f; // At least 1 degree padding if all temps are the same
+        yAxis.setAxisMinimum(minTemp - padding);
+        yAxis.setAxisMaximum(maxTemp + padding);
+
+        // Create dataset
+        LineDataSet dataSet = new LineDataSet(tempEntries, "Temperature (°C)");
+        dataSet.setColor(Color.BLUE);
+        dataSet.setCircleColor(Color.BLUE);
+        dataSet.setCircleHoleColor(Color.BLACK);
+        dataSet.setLineWidth(2f);
+
+        // Adjust circle size based on data density
+        if (dataPointCount > 50) {
+            dataSet.setCircleRadius(1.5f);
+            dataSet.setDrawCircles(true);
+        } else if (dataPointCount > 20) {
+            dataSet.setCircleRadius(2f);
+            dataSet.setDrawCircles(true);
+        } else {
+            dataSet.setCircleRadius(3f);
+            dataSet.setDrawCircles(true);
+        }
+
+        dataSet.setDrawValues(false);
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        dataSet.setCubicIntensity(0.2f); // Smoother curves for dense data
+
+        // Update chart
+        LineData lineData = new LineData(dataSet);
+        temperatureChart.setData(lineData);
+
+        // Set visible range - show last 20 data points initially if there are many
+        if (dataPointCount > 20) {
+            temperatureChart.setVisibleXRangeMaximum(20);
+            temperatureChart.moveViewToX(dataPointCount - 1); // Move to most recent data
+        }
+
+        temperatureChart.notifyDataSetChanged();
+        temperatureChart.invalidate();
+    }
+
+    private void setupPhChart() {
+        // General Styling
+        phChart.setBackgroundColor(Color.WHITE);
+        phChart.setDrawGridBackground(false);
+        phChart.setDrawBorders(false);
+
+        // Remove description
+        phChart.getDescription().setEnabled(false);
+
+        // Enable touch gestures
+        phChart.setTouchEnabled(true);
+        phChart.setDragEnabled(true);
+        phChart.setScaleEnabled(true);
+        phChart.setPinchZoom(true);
+
+        // Customize Axes
+        XAxis xAxis = phChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setGranularity(1f);
+        xAxis.setDrawGridLines(false);
+        xAxis.setTextColor(Color.DKGRAY);
+        xAxis.setAxisLineColor(Color.DKGRAY);
+
+        YAxis leftAxis = phChart.getAxisLeft();
+        leftAxis.setLabelCount(10, true);
+        leftAxis.setTextColor(Color.DKGRAY);
+        leftAxis.setAxisLineColor(Color.DKGRAY);
+        leftAxis.setDrawGridLines(true);
+        leftAxis.setGridColor(Color.LTGRAY);
+
+        // Hide the right axis completely
+        phChart.getAxisRight().setEnabled(false);
+
+        // Customize Legend
+        phChart.getLegend().setEnabled(true);
+        phChart.getLegend().setTextSize(12f);
+        phChart.getLegend().setTextColor(Color.DKGRAY);
+
+        phChart.setNoDataText("Awaiting pH readings...");
+        phChart.invalidate();
+    }
+
+    private void loadPhReadings() {
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Log.w(TAG, "Cannot load pH readings: No user logged in.");
+            return;
+        }
+
+        // Stop previous listener if exists
+        if (phReadingsListener != null) {
+            phReadingsListener.remove();
+        }
+
+        // Listen to pH readings for this recipe
         phReadingsListener = db.collection("users")
                 .document(user.getUid())
                 .collection("Recipes")
@@ -463,6 +977,138 @@ public class ViewRecipeActivity extends AppCompatActivity {
     }
 
     private void stopPhListener() {
+
+                    if (snapshots == null || snapshots.isEmpty()) {
+                        // No data yet
+                        phChart.clear();
+                        phChart.setNoDataText("No pH readings yet");
+                        phChart.invalidate();
+                        return;
+                    }
+
+                    // Parse readings
+                    List<SensorReadings> readings = new ArrayList<>();
+                    for (QueryDocumentSnapshot doc : snapshots) {
+                        SensorReadings reading = doc.toObject(SensorReadings.class);
+                        readings.add(reading);
+                    }
+
+                    updatePhChart(readings);
+                });
+    }
+
+    private void updatePhChart(List<SensorReadings> readings) {
+        if (readings.isEmpty()) {
+            phChart.clear();
+            phChart.setNoDataText("No pH readings yet");
+            phChart.invalidate();
+            return;
+        }
+
+        List<Entry> phEntries = new ArrayList<>();
+        List<String> xLabels = new ArrayList<>();
+
+        SimpleDateFormat inputFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        SimpleDateFormat outputFormat = new SimpleDateFormat("MM/dd HH:mm", Locale.getDefault());
+
+        float minPh = Float.MAX_VALUE;
+        float maxPh = Float.MIN_VALUE;
+
+        for (int i = 0; i < readings.size(); i++) {
+            SensorReadings reading = readings.get(i);
+            float ph = reading.getPh_value();
+            phEntries.add(new Entry(i, ph));
+
+            // Track min/max for Y-axis
+            minPh = Math.min(minPh, ph);
+            maxPh = Math.max(maxPh, ph);
+
+            // Format timestamp for X-axis label
+            try {
+                Date date = inputFormat.parse(reading.getTimestamp());
+                if (date != null) {
+                    xLabels.add(outputFormat.format(date));
+                } else {
+                    xLabels.add(String.valueOf(i + 1));
+                }
+            } catch (ParseException e) {
+                xLabels.add(String.valueOf(i + 1));
+            }
+        }
+
+        // Configure X-axis with time labels
+        XAxis xAxis = phChart.getXAxis();
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(xLabels));
+
+        // Intelligently set label count based on number of data points
+        int dataPointCount = readings.size();
+        int labelCount;
+
+        if (dataPointCount <= 10) {
+            labelCount = dataPointCount;
+        } else if (dataPointCount <= 50) {
+            labelCount = dataPointCount / 5;
+        } else if (dataPointCount <= 100) {
+            labelCount = dataPointCount / 10;
+        } else {
+            labelCount = 15;
+        }
+
+        xAxis.setLabelCount(labelCount, false);
+        xAxis.setLabelRotationAngle(-45f);
+        xAxis.setGranularity(1f);
+        xAxis.setGranularityEnabled(true);
+
+        // Configure Y-axis with dynamic range based on data
+        YAxis yAxis = phChart.getAxisLeft();
+        // Add some padding (10%) above and below the data range
+        float range = maxPh - minPh;
+        float padding = range > 0 ? range * 0.1f : 0.5f; // At least 0.5 pH padding
+        yAxis.setAxisMinimum(minPh - padding);
+        yAxis.setAxisMaximum(maxPh + padding);
+
+        // Create dataset
+        LineDataSet dataSet = new LineDataSet(phEntries, "pH Value");
+        dataSet.setColor(Color.parseColor("#FF6B35"));
+        dataSet.setCircleColor(Color.parseColor("#FF6B35"));
+        dataSet.setCircleHoleColor(Color.BLACK);
+        dataSet.setLineWidth(2f);
+
+        // Adjust circle size based on data density
+        if (dataPointCount > 50) {
+            dataSet.setCircleRadius(1.5f);
+            dataSet.setDrawCircles(true);
+        } else if (dataPointCount > 20) {
+            dataSet.setCircleRadius(2f);
+            dataSet.setDrawCircles(true);
+        } else {
+            dataSet.setCircleRadius(3f);
+            dataSet.setDrawCircles(true);
+        }
+
+        dataSet.setDrawValues(false);
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        dataSet.setCubicIntensity(0.2f);
+
+        // Update chart
+        LineData lineData = new LineData(dataSet);
+        phChart.setData(lineData);
+
+        // Set visible range - show last 20 data points initially if there are many
+        if (dataPointCount > 20) {
+            phChart.setVisibleXRangeMaximum(20);
+            phChart.moveViewToX(dataPointCount - 1);
+        }
+
+        phChart.notifyDataSetChanged();
+        phChart.invalidate();
+    }
+
+    private void stopChartListener() {
+        if (tempReadingsListener != null) {
+            tempReadingsListener.remove();
+            tempReadingsListener = null;
+        }
         if (phReadingsListener != null) {
             phReadingsListener.remove();
             phReadingsListener = null;

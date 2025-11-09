@@ -160,6 +160,9 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                 case "brewing":
                     recipeStatus.setBackgroundColor(Color.parseColor("#FF9100")); // Orange
                     break;
+                case "paused":
+                    recipeStatus.setBackgroundColor(Color.parseColor("#FF9800")); // Amber
+                    break;
                 case "completed":
                     recipeStatus.setBackgroundColor(Color.parseColor("#4CAF50")); // Green
                     break;

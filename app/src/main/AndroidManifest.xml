@@ -23,10 +23,6 @@
             android:name=".EditRecipeActivity"
             android:exported="false" />
         <!-- END OF NEW ACTIVITIES -->
-
-        <activity
-            android:name=".AllSensorReadingsActivity"
-            android:exported="false" />
         <activity android:name=".SettingsActivity" />
         <activity
             android:name=".CreateANewRecipe"
