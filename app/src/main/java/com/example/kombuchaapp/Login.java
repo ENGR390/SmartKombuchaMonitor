@@ -1,6 +1,7 @@
 package com.example.kombuchaapp;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
@@ -27,6 +28,7 @@ import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 
 public class Login extends AppCompatActivity {
+
     EditText mEmail, mPassword;
     Button mLoginBtn;
     TextView mCreateBtn, forgotTextLink;
@@ -48,6 +50,8 @@ public class Login extends AppCompatActivity {
 
         fAuth = FirebaseAuth.getInstance();
 
+        // Ask notification permission once
+        ensurePostNotificationsPermission();
         if (fAuth.getCurrentUser() != null) {
             showSplashThenGoToMain();
             return;
@@ -102,6 +106,22 @@ public class Login extends AppCompatActivity {
                 startActivity(new Intent(getApplicationContext(), ForgotPassword.class));
             }
         });
+    }
+
+    private void ensurePostNotificationsPermission() {
+        if (Build.VERSION.SDK_INT >= 33) {
+            SharedPreferences sp = getSharedPreferences("kombucha_prefs", MODE_PRIVATE);
+            boolean alreadyAsked = sp.getBoolean("asked_post_notifications_v1", false);
+
+            if (!alreadyAsked) {
+                sp.edit().putBoolean("asked_post_notifications_v1", true).apply();
+
+                if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                        != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1001);
+                }
+            }
+        }
     }
 
     private void showSplashThenGoToMain() {

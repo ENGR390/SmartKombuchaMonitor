@@ -17,6 +17,10 @@ import androidx.appcompat.widget.Toolbar;
 import com.example.kombuchaapp.models.Recipe;
 import com.example.kombuchaapp.models.SensorReadings;
 import com.example.kombuchaapp.repositories.RecipeRepository;
+import com.example.kombuchaapp.AlertAdapter;
+import com.example.kombuchaapp.TemperatureAlert;
+import com.example.kombuchaapp.NotificationHelper;
+
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
@@ -65,6 +69,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private ListenerRegistration readingsListener;
     private ListenerRegistration tempReadingsListener;
     private ListenerRegistration phReadingsListener;
+    private ListenerRegistration phNotifyListener;
+
+    private boolean hasHarvestNotified = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -521,11 +528,14 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     if ("brewing".equals(newStatus)) {
                         addRecipeForSensors();
                         startReadingListener();
+                        startPhListener();
+                        hasHarvestNotified = false;
                     }
 
                     if ("completed".equals(newStatus)) {
                         removeRecipeForSensors();
                         stopReadingListener();
+                        stopPhListener();
                         tvTempAlert.setVisibility(View.GONE);
                     }
 
@@ -617,6 +627,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         super.onStart();
         if (currentRecipe != null && "brewing".equalsIgnoreCase(currentRecipe.getStatus())) {
             startReadingListener();
+            startPhListener();
         }
     }
 
@@ -624,6 +635,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
     protected void onStop() {
         super.onStop();
         stopReadingListener();
+        stopPhListener();
         stopChartListener();
     }
     private void startReadingListener() {
@@ -643,7 +655,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     if (tempFd == null) return;
                     float tempF = tempFd.floatValue();
 
-                    AlertAdapter.handleNewReading(this, tempF, tvTempAlert);
+                    AlertAdapter.handleNewReading(this, recipeId, tempF, tvTempAlert);
 
                     TemperatureAlert.Result r = TemperatureAlert.evaluateF(tempF);
                     tvTempAlert.setVisibility(View.VISIBLE);
@@ -658,6 +670,62 @@ public class ViewRecipeActivity extends AppCompatActivity {
             readingsListener = null;
         }
         AlertAdapter.resetDebounce();
+    }
+
+    private void startPhListener() {
+        stopPhListener();
+
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            Log.w(TAG, "Cannot listen for pH: No user logged in.");
+            return;
+        }
+
+        phNotifyListener = db.collection("users")
+                .document(user.getUid())
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("ph_readings")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(1)
+                .addSnapshotListener((snapshots, error) -> {
+                    if (error != null || snapshots == null || snapshots.isEmpty()) {
+                        return;
+                    }
+
+                    Double phVal = snapshots.getDocuments().get(0).getDouble("ph_value");
+                    if (phVal == null) return;
+
+                    float ph = phVal.floatValue();
+
+                    if (currentRecipe != null
+                            && "brewing".equalsIgnoreCase(currentRecipe.getStatus())
+                            && !hasHarvestNotified
+                            && !Float.isNaN(ph)
+                            && Math.abs(ph - 3.0f) <= 0.05f) {
+
+                        hasHarvestNotified = true;
+
+                        String recipeName = (currentRecipe.getRecipeName() != null
+                                && !currentRecipe.getRecipeName().trim().isEmpty())
+                                ? currentRecipe.getRecipeName()
+                                : "Your kombucha";
+
+                        NotificationHelper.notifyReadyToHarvest(
+                                getApplicationContext(),
+                                recipeId,
+                                recipeName,
+                                ph
+                        );
+                    }
+                });
+    }
+
+    private void stopPhListener() {
+        if (phNotifyListener != null) {
+            phNotifyListener.remove();
+            phNotifyListener = null;
+        }
     }
 
     private void setupTempChart() {
