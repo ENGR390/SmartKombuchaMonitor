@@ -9,6 +9,15 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import android.graphics.Color;
+import android.graphics.RenderEffect;
+import android.graphics.Shader;
+import android.os.Build;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -23,9 +32,12 @@ public class Login extends AppCompatActivity {
     TextView mCreateBtn, forgotTextLink;
     FirebaseAuth fAuth;
 
+    private static final long SPLASH_DURATION_MS = 650L;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_login);
 
         mEmail = findViewById(R.id.Email);
@@ -36,10 +48,9 @@ public class Login extends AppCompatActivity {
 
         fAuth = FirebaseAuth.getInstance();
 
-        // Check if user already logged in
-        if(fAuth.getCurrentUser() != null) {
-            startActivity(new Intent(getApplicationContext(), MainActivity.class));
-            finish();
+        if (fAuth.getCurrentUser() != null) {
+            showSplashThenGoToMain();
+            return;
         }
 
         mLoginBtn.setOnClickListener(new View.OnClickListener() {
@@ -48,33 +59,33 @@ public class Login extends AppCompatActivity {
                 String email = mEmail.getText().toString().trim();
                 String password = mPassword.getText().toString().trim();
 
-                if(TextUtils.isEmpty(email)) {
+                if (TextUtils.isEmpty(email)) {
                     mEmail.setError("Email is Required.");
                     return;
                 }
 
-                if(TextUtils.isEmpty(password)) {
+                if (TextUtils.isEmpty(password)) {
                     mPassword.setError("Password is Required.");
                     return;
                 }
 
-                if(password.length() < 6) {
+                if (password.length() < 6) {
                     mPassword.setError("Password Must be >= 6 Characters");
                     return;
                 }
 
-                fAuth.signInWithEmailAndPassword(email, password).addOnCompleteListener(new OnCompleteListener<AuthResult>() {
-                    @Override
-                    public void onComplete(@NonNull Task<AuthResult> task) {
-                        if(task.isSuccessful()) {
-                            Toast.makeText(Login.this, "Logged in Successfully", Toast.LENGTH_SHORT).show();
-                            startActivity(new Intent(getApplicationContext(), MainActivity.class));
-                            finish();
-                        } else {
-                            Toast.makeText(Login.this, "Error ! " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    }
-                });
+                fAuth.signInWithEmailAndPassword(email, password)
+                        .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
+                            @Override
+                            public void onComplete(@NonNull Task<AuthResult> task) {
+                                if (task.isSuccessful()) {
+                                    Toast.makeText(Login.this, "Logged in Successfully", Toast.LENGTH_SHORT).show();
+                                    showSplashThenGoToMain();
+                                } else {
+                                    Toast.makeText(Login.this, "Error ! " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
             }
         });
 
@@ -91,5 +102,39 @@ public class Login extends AppCompatActivity {
                 startActivity(new Intent(getApplicationContext(), ForgotPassword.class));
             }
         });
+    }
+
+    private void showSplashThenGoToMain() {
+        FrameLayout splashRoot = new FrameLayout(this);
+        splashRoot.setBackgroundColor(Color.parseColor("#F4B266"));
+
+        ImageView bg = new ImageView(this);
+        bg.setImageResource(R.drawable.app_logo);
+        bg.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        bg.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+        ));
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            float radius = 30f;
+            bg.setRenderEffect(RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP));
+        }
+        splashRoot.addView(bg);
+
+        ImageView centerLogo = new ImageView(this);
+        centerLogo.setImageResource(R.drawable.app_logo);
+        int logoSizePx = (int) TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, 160, getResources().getDisplayMetrics());
+        FrameLayout.LayoutParams logoLp = new FrameLayout.LayoutParams(logoSizePx, logoSizePx);
+        logoLp.gravity = Gravity.CENTER;
+        centerLogo.setLayoutParams(logoLp);
+        splashRoot.addView(centerLogo);
+
+        setContentView(splashRoot);
+
+        splashRoot.postDelayed(() -> {
+            startActivity(new Intent(getApplicationContext(), MainActivity.class));
+            finish();
+        }, SPLASH_DURATION_MS);
     }
 }
