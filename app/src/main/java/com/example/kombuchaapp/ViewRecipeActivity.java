@@ -377,18 +377,6 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private void backToDraft() {
         showLoading(true);
 
-        // First, delete all temperature readings for this recipe
-        deleteSensorReadings();
-
-        // Remove from sensor control
-        removeRecipeForSensors();
-
-        // Clear brewing dates and update status to draft
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("status", "draft");
-        updates.put("brewingStartDate", null);
-        updates.put("completionDate", null);
-
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         if (user == null) {
             showLoading(false);
@@ -396,26 +384,133 @@ public class ViewRecipeActivity extends AppCompatActivity {
             return;
         }
 
-        db.collection("users").document(user.getUid())
-                .collection("Recipes").document(recipeId)
-                .update(updates)
-                .addOnSuccessListener(aVoid -> {
-                    runOnUiThread(() -> {
-                        showLoading(false);
-                        Toast.makeText(ViewRecipeActivity.this,
-                                "Recipe moved back to draft. All sensor data deleted.",
-                                Toast.LENGTH_SHORT).show();
-                        loadRecipe();
-                    });
+        // First, delete all temperature and pH readings for this recipe
+        // We need to wait for both deletions to complete
+        final boolean[] tempDeleted = {false};
+        final boolean[] phDeleted = {false};
+        final boolean[] hasError = {false};
+
+        String userId = user.getUid();
+
+        // Delete temperature readings
+        db.collection("users")
+                .document(userId)
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("temperature_readings")
+                .get()
+                .addOnSuccessListener(tempSnapshots -> {
+                    if (tempSnapshots.isEmpty()) {
+                        tempDeleted[0] = true;
+                        checkAndProceedToUpdateStatus(tempDeleted, phDeleted, hasError, userId);
+                    } else {
+                        // Count how many we need to delete
+                        int totalTemp = tempSnapshots.size();
+                        final int[] deletedTemp = {0};
+
+                        for (com.google.firebase.firestore.DocumentSnapshot doc : tempSnapshots.getDocuments()) {
+                            doc.getReference().delete()
+                                    .addOnSuccessListener(aVoid -> {
+                                        deletedTemp[0]++;
+                                        if (deletedTemp[0] == totalTemp) {
+                                            tempDeleted[0] = true;
+                                            Log.d(TAG, "All temperature readings deleted");
+                                            checkAndProceedToUpdateStatus(tempDeleted, phDeleted, hasError, userId);
+                                        }
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Log.e(TAG, "Failed to delete temperature reading", e);
+                                        hasError[0] = true;
+                                        tempDeleted[0] = true;
+                                        checkAndProceedToUpdateStatus(tempDeleted, phDeleted, hasError, userId);
+                                    });
+                        }
+                    }
                 })
                 .addOnFailureListener(e -> {
-                    runOnUiThread(() -> {
-                        showLoading(false);
-                        Toast.makeText(ViewRecipeActivity.this,
-                                "Failed to update status: " + e.getMessage(),
-                                Toast.LENGTH_SHORT).show();
-                    });
+                    Log.e(TAG, "Failed to fetch temperature readings", e);
+                    hasError[0] = true;
+                    tempDeleted[0] = true;
+                    checkAndProceedToUpdateStatus(tempDeleted, phDeleted, hasError, userId);
                 });
+
+        // Delete pH readings
+        db.collection("users")
+                .document(userId)
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("ph_readings")
+                .get()
+                .addOnSuccessListener(phSnapshots -> {
+                    if (phSnapshots.isEmpty()) {
+                        phDeleted[0] = true;
+                        checkAndProceedToUpdateStatus(tempDeleted, phDeleted, hasError, userId);
+                    } else {
+                        // Count how many we need to delete
+                        int totalPh = phSnapshots.size();
+                        final int[] deletedPh = {0};
+
+                        for (com.google.firebase.firestore.DocumentSnapshot doc : phSnapshots.getDocuments()) {
+                            doc.getReference().delete()
+                                    .addOnSuccessListener(aVoid -> {
+                                        deletedPh[0]++;
+                                        if (deletedPh[0] == totalPh) {
+                                            phDeleted[0] = true;
+                                            Log.d(TAG, "All pH readings deleted");
+                                            checkAndProceedToUpdateStatus(tempDeleted, phDeleted, hasError, userId);
+                                        }
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Log.e(TAG, "Failed to delete pH reading", e);
+                                        hasError[0] = true;
+                                        phDeleted[0] = true;
+                                        checkAndProceedToUpdateStatus(tempDeleted, phDeleted, hasError, userId);
+                                    });
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to fetch pH readings", e);
+                    hasError[0] = true;
+                    phDeleted[0] = true;
+                    checkAndProceedToUpdateStatus(tempDeleted, phDeleted, hasError, userId);
+                });
+    }
+
+    private void checkAndProceedToUpdateStatus(boolean[] tempDeleted, boolean[] phDeleted, boolean[] hasError, String userId) {
+        // Only proceed when both temp and pH deletions are complete
+        if (tempDeleted[0] && phDeleted[0]) {
+            // Remove from sensor control
+            removeRecipeForSensors();
+
+            // Clear brewing dates and update status to draft
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("status", "draft");
+            updates.put("brewingStartDate", null);
+            updates.put("completionDate", null);
+
+            db.collection("users").document(userId)
+                    .collection("Recipes").document(recipeId)
+                    .update(updates)
+                    .addOnSuccessListener(aVoid -> {
+                        runOnUiThread(() -> {
+                            showLoading(false);
+                            String message = hasError[0] ?
+                                    "Recipe moved back to draft. Some sensor data may not have been deleted." :
+                                    "Recipe moved back to draft. All sensor data deleted.";
+                            Toast.makeText(ViewRecipeActivity.this, message, Toast.LENGTH_SHORT).show();
+                            loadRecipe();
+                        });
+                    })
+                    .addOnFailureListener(e -> {
+                        runOnUiThread(() -> {
+                            showLoading(false);
+                            Toast.makeText(ViewRecipeActivity.this,
+                                    "Failed to update status: " + e.getMessage(),
+                                    Toast.LENGTH_SHORT).show();
+                        });
+                    });
+        }
     }
 
     private void confirmRebrew() {
@@ -489,31 +584,6 @@ public class ViewRecipeActivity extends AppCompatActivity {
                                 "Failed to check brewing status: " + e.getMessage(),
                                 Toast.LENGTH_SHORT).show();
                     });
-                });
-    }
-
-    private void deleteSensorReadings() {
-        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
-        if (user == null) {
-            Log.w(TAG, "Cannot delete sensor readings: No user logged in.");
-            return;
-        }
-
-        // Delete all temperature readings for this recipe in the subcollection
-        db.collection("users")
-                .document(user.getUid())
-                .collection("Recipes")
-                .document(recipeId)
-                .collection("temperature_readings")
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    for (com.google.firebase.firestore.DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
-                        doc.getReference().delete();
-                    }
-                    Log.d(TAG, "Deleted sensor readings for recipe: " + recipeId);
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to delete sensor readings", e);
                 });
     }
 
