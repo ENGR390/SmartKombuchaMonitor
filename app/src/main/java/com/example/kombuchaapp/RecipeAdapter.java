@@ -195,22 +195,28 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
         }
 
         private void deleteRecipe(Recipe recipe, int position) {
-            recipeRepository.deleteRecipe(recipe.getRecipeId(), new RecipeRepository.OnUpdateListener() {
-                @Override
-                public void onSuccess(String message) {
-                    removeRecipeForSensors(recipe.getRecipeId()); // Call the new method
-                    removeRecipe(position);
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
-                    if (deleteListener != null) {
-                        deleteListener.onRecipeDeleted();
+            // First, remove from sensor control to prevent new sensor writes during deletion
+            removeRecipeForSensors(recipe.getRecipeId());
+            
+            // Small delay to ensure sensor sees the removal before we start deleting
+            new android.os.Handler().postDelayed(() -> {
+                // Now delete the recipe (which will delete all subcollections first)
+                recipeRepository.deleteRecipe(recipe.getRecipeId(), new RecipeRepository.OnUpdateListener() {
+                    @Override
+                    public void onSuccess(String message) {
+                        removeRecipe(position);
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+                        if (deleteListener != null) {
+                            deleteListener.onRecipeDeleted();
+                        }
                     }
-                }
 
-                @Override
-                public void onFailure(String error) {
-                    Toast.makeText(context, "Failed to delete: " + error, Toast.LENGTH_SHORT).show();
-                }
-            });
+                    @Override
+                    public void onFailure(String error) {
+                        Toast.makeText(context, "Failed to delete: " + error, Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }, 500); // 500ms delay to let sensor control update propagate
         }
 
         private void removeRecipeForSensors(String deletedRecipeId) {
@@ -231,7 +237,6 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                                         .update(updates)
                                         .addOnSuccessListener(aVoid -> {
                                             Log.d(TAG, "Active recipe cleared from sensor_control because it was deleted.");
-                                            Toast.makeText(context, "Active recipe sensor deactivated.", Toast.LENGTH_SHORT).show();
                                         })
                                         .addOnFailureListener(e -> Log.e(TAG, "Failed to clear active recipe from sensor_control", e));
                             }
