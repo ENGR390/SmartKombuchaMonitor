@@ -209,16 +209,108 @@ public class RecipeRepository {
             return;
         }
 
-        recipesRef.document(recipeId)
-                .delete()
-                .addOnSuccessListener(aVoid -> {
-                    Log.d(TAG, "Recipe deleted: " + recipeId);
-                    listener.onSuccess("Recipe deleted successfully");
+        // First, delete all subcollections (temperature_readings and ph_readings)
+        deleteRecipeSubcollections(recipeId, new OnUpdateListener() {
+            @Override
+            public void onSuccess(String message) {
+                // After subcollections are deleted, delete the recipe document
+                recipesRef.document(recipeId)
+                        .delete()
+                        .addOnSuccessListener(aVoid -> {
+                            Log.d(TAG, "Recipe deleted: " + recipeId);
+                            listener.onSuccess("Recipe deleted successfully");
+                        })
+                        .addOnFailureListener(e -> {
+                            Log.e(TAG, "Failed to delete recipe: " + e.getMessage());
+                            listener.onFailure(e.getMessage());
+                        });
+            }
+
+            @Override
+            public void onFailure(String error) {
+                Log.e(TAG, "Failed to delete subcollections: " + error);
+                listener.onFailure("Failed to delete recipe data: " + error);
+            }
+        });
+    }
+
+    private void deleteRecipeSubcollections(String recipeId, OnUpdateListener listener) {
+        FirebaseUser user = fAuth.getCurrentUser();
+        if (user == null) {
+            listener.onFailure("User not logged in");
+            return;
+        }
+
+        String userId = user.getUid();
+        
+        // Counter to track deletion completion
+        final int[] deletionCount = {0};
+        final int[] failureCount = {0};
+        
+        // Delete temperature readings
+        fStore.collection("users")
+                .document(userId)
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("temperature_readings")
+                .get()
+                .addOnSuccessListener(tempSnapshots -> {
+                    if (tempSnapshots.isEmpty()) {
+                        deletionCount[0]++;
+                        checkDeletionComplete(deletionCount, failureCount, listener);
+                    } else {
+                        for (DocumentSnapshot doc : tempSnapshots.getDocuments()) {
+                            doc.getReference().delete()
+                                    .addOnSuccessListener(aVoid -> Log.d(TAG, "Deleted temp reading"))
+                                    .addOnFailureListener(e -> Log.e(TAG, "Failed to delete temp reading", e));
+                        }
+                        deletionCount[0]++;
+                        checkDeletionComplete(deletionCount, failureCount, listener);
+                    }
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to delete recipe: " + e.getMessage());
-                    listener.onFailure(e.getMessage());
+                    Log.e(TAG, "Failed to fetch temperature readings", e);
+                    failureCount[0]++;
+                    checkDeletionComplete(deletionCount, failureCount, listener);
                 });
+
+        // Delete pH readings
+        fStore.collection("users")
+                .document(userId)
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("ph_readings")
+                .get()
+                .addOnSuccessListener(phSnapshots -> {
+                    if (phSnapshots.isEmpty()) {
+                        deletionCount[0]++;
+                        checkDeletionComplete(deletionCount, failureCount, listener);
+                    } else {
+                        for (DocumentSnapshot doc : phSnapshots.getDocuments()) {
+                            doc.getReference().delete()
+                                    .addOnSuccessListener(aVoid -> Log.d(TAG, "Deleted pH reading"))
+                                    .addOnFailureListener(e -> Log.e(TAG, "Failed to delete pH reading", e));
+                        }
+                        deletionCount[0]++;
+                        checkDeletionComplete(deletionCount, failureCount, listener);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to fetch pH readings", e);
+                    failureCount[0]++;
+                    checkDeletionComplete(deletionCount, failureCount, listener);
+                });
+    }
+
+    private void checkDeletionComplete(int[] deletionCount, int[] failureCount, OnUpdateListener listener) {
+        // We're deleting 2 subcollections (temperature and pH)
+        if (deletionCount[0] + failureCount[0] >= 2) {
+            if (failureCount[0] > 0) {
+                listener.onFailure("Some sensor data could not be deleted");
+            } else {
+                listener.onSuccess("Subcollections deleted");
+            }
+        }
     }
 
     // Parse Firestore document into Recipe object
