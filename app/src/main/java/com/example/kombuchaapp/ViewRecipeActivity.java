@@ -370,7 +370,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private void backToDraft() {
         showLoading(true);
 
-        // First, delete all temperature readings for this recipe
+        // First, delete all temperature and pH readings for this recipe
         deleteSensorReadings();
 
         // Remove from sensor control
@@ -492,9 +492,11 @@ public class ViewRecipeActivity extends AppCompatActivity {
             return;
         }
 
-        // Delete all temperature readings for this recipe in the subcollection
+        String userId = user.getUid();
+        
+        // Delete temperature readings
         db.collection("users")
-                .document(user.getUid())
+                .document(userId)
                 .collection("Recipes")
                 .document(recipeId)
                 .collection("temperature_readings")
@@ -503,10 +505,27 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     for (com.google.firebase.firestore.DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
                         doc.getReference().delete();
                     }
-                    Log.d(TAG, "Deleted sensor readings for recipe: " + recipeId);
+                    Log.d(TAG, "Deleted temperature readings for recipe: " + recipeId);
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to delete sensor readings", e);
+                    Log.e(TAG, "Failed to delete temperature readings", e);
+                });
+
+        // Delete pH readings
+        db.collection("users")
+                .document(userId)
+                .collection("Recipes")
+                .document(recipeId)
+                .collection("ph_readings")
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    for (com.google.firebase.firestore.DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
+                        doc.getReference().delete();
+                    }
+                    Log.d(TAG, "Deleted pH readings for recipe: " + recipeId);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to delete pH readings", e);
                 });
     }
 
