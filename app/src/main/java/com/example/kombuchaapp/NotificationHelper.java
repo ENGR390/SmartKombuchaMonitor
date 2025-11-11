@@ -13,11 +13,6 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 
-import com.example.kombuchaapp.R;
-import com.example.kombuchaapp.ViewRecipeActivity;
-
-import java.util.Locale;
-
 public final class NotificationHelper {
     private NotificationHelper() {}
 
@@ -25,26 +20,46 @@ public final class NotificationHelper {
     private static final String CHANNEL_NAME_CRITICAL = "Temperature Alerts";
     private static final String CHANNEL_DESC_CRITICAL = "Critical kombucha temperature alerts";
 
+    public static final String CHANNEL_ID_PH = "ph_alerts";
+    private static final String CHANNEL_NAME_PH = "pH Alerts";
+    private static final String CHANNEL_DESC_PH = "Kombucha pH phase and harvest alerts";
+
     private static final int ID_BASE_CRITICAL = 40000;
-    private static final int ID_BASE_HARVEST  = 41000;
+    private static final int ID_BASE_PH = 41000;
 
     public static void ensureChannels(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel ch = new NotificationChannel(
+            NotificationManager nm = context.getSystemService(NotificationManager.class);
+            NotificationChannel chTemp = new NotificationChannel(
                     CHANNEL_ID_CRITICAL,
                     CHANNEL_NAME_CRITICAL,
                     NotificationManager.IMPORTANCE_HIGH
             );
-            ch.setDescription(CHANNEL_DESC_CRITICAL);
-            ch.enableLights(true);
-            ch.setLightColor(Color.RED);
-            ch.enableVibration(true);
-            NotificationManager nm = context.getSystemService(NotificationManager.class);
-            nm.createNotificationChannel(ch);
+            chTemp.setDescription(CHANNEL_DESC_CRITICAL);
+            chTemp.enableLights(true);
+            chTemp.setLightColor(Color.RED);
+            chTemp.enableVibration(true);
+            nm.createNotificationChannel(chTemp);
+
+            NotificationChannel chPh = new NotificationChannel(
+                    CHANNEL_ID_PH,
+                    CHANNEL_NAME_PH,
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+            chPh.setDescription(CHANNEL_DESC_PH);
+            chPh.enableLights(true);
+            chPh.setLightColor(Color.GREEN);
+            chPh.enableVibration(true);
+            nm.createNotificationChannel(chPh);
         }
     }
 
-    public static void notifyCritical(Context context, String recipeId, String title, String message, float currentF) {
+    public static void notifyCritical(Context context,
+                                      String recipeId,
+                                      String title,
+                                      String message,
+                                      float currentF) {
+
         ensureChannels(context);
 
         NotificationManagerCompat nmc = NotificationManagerCompat.from(context);
@@ -74,7 +89,7 @@ public final class NotificationHelper {
                         : PendingIntent.FLAG_UPDATE_CURRENT
         );
 
-        String content = message + "  •  Current: " + String.format(Locale.getDefault(), "%.1f°F", currentF);
+        String content = message + "  •  Current: " + String.format("%.1f°F", currentF);
 
         NotificationCompat.Builder nb = new NotificationCompat.Builder(context, CHANNEL_ID_CRITICAL)
                 .setSmallIcon(android.R.drawable.stat_notify_error)
@@ -95,8 +110,10 @@ public final class NotificationHelper {
 
     public static void notifyReadyToHarvest(Context context,
                                             String recipeId,
-                                            String recipeName,
-                                            float phValue) {
+                                            String title,
+                                            String message,
+                                            float currentPh) {
+
         ensureChannels(context);
 
         NotificationManagerCompat nmc = NotificationManagerCompat.from(context);
@@ -116,7 +133,7 @@ public final class NotificationHelper {
         intent.putExtra("recipe_id", recipeId);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
-        int reqCode = (recipeId != null ? recipeId.hashCode() : 0);
+        int reqCode = (recipeId != null ? recipeId.hashCode() : 0) ^ 0x0F0F0F0F;
         PendingIntent pi = PendingIntent.getActivity(
                 context,
                 reqCode,
@@ -126,34 +143,19 @@ public final class NotificationHelper {
                         : PendingIntent.FLAG_UPDATE_CURRENT
         );
 
-        String batchLabel;
-        if (recipeName != null && !recipeName.trim().isEmpty()) {
-            batchLabel = recipeName;
-        } else if (recipeId != null && !recipeId.trim().isEmpty()) {
-            batchLabel = "Batch " + recipeId;
-        } else {
-            batchLabel = "Your kombucha";
-        }
+        String content = message + "  •  Current pH: " + String.format("%.2f", currentPh);
 
-        String title = "Ready to Harvest";
-        String content = String.format(
-                Locale.getDefault(),
-                "%s reached pH %.2f. Time to harvest!",
-                batchLabel,
-                phValue
-        );
-
-        NotificationCompat.Builder nb = new NotificationCompat.Builder(context, CHANNEL_ID_CRITICAL)
+        NotificationCompat.Builder nb = new NotificationCompat.Builder(context, CHANNEL_ID_PH)
                 .setSmallIcon(android.R.drawable.stat_notify_more)
                 .setContentTitle(title)
                 .setContentText(content)
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(content))
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setCategory(NotificationCompat.CATEGORY_STATUS)
                 .setContentIntent(pi)
                 .setAutoCancel(true);
 
-        int notifId = ID_BASE_HARVEST + Math.abs(reqCode);
+        int notifId = ID_BASE_PH + Math.abs(reqCode);
         try {
             nmc.notify(notifId, nb.build());
         } catch (SecurityException ignored) {
