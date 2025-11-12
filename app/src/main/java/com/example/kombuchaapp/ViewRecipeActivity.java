@@ -20,6 +20,7 @@ import com.example.kombuchaapp.repositories.RecipeRepository;
 import com.example.kombuchaapp.AlertAdapter;
 import com.example.kombuchaapp.TemperatureAlert;
 import com.example.kombuchaapp.NotificationHelper;
+import com.example.kombuchaapp.PhAlert;
 
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.XAxis;
@@ -776,15 +777,13 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
                         hasHarvestNotified = true;
 
-                        String recipeName = (currentRecipe.getRecipeName() != null
-                                && !currentRecipe.getRecipeName().trim().isEmpty())
-                                ? currentRecipe.getRecipeName()
-                                : "Your kombucha";
+                        PhAlert.Result r = PhAlert.evaluate(ph);
 
                         NotificationHelper.notifyReadyToHarvest(
                                 getApplicationContext(),
                                 recipeId,
-                                recipeName,
+                                r.title,
+                                r.message,
                                 ph
                         );
                     }
