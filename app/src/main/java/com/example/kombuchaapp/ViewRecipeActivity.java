@@ -3,6 +3,7 @@ package com.example.kombuchaapp;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.text.Html;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -16,11 +17,14 @@ import androidx.appcompat.widget.Toolbar;
 
 import com.example.kombuchaapp.models.Recipe;
 import com.example.kombuchaapp.models.SensorReadings;
+import com.example.kombuchaapp.models.UserSettings;
 import com.example.kombuchaapp.repositories.RecipeRepository;
+import com.example.kombuchaapp.repositories.SettingsRepository;
 import com.example.kombuchaapp.AlertAdapter;
 import com.example.kombuchaapp.TemperatureAlert;
 import com.example.kombuchaapp.NotificationHelper;
 import com.example.kombuchaapp.PhAlert;
+import com.example.kombuchaapp.PhFermentationStage;
 
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.XAxis;
@@ -55,6 +59,8 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private TextView tvRecipeName, tvStatus, tvTeaLeaf, tvWater, tvSugar, tvScoby,
             tvKombuchaStarter, tvFlavor, tvCreatedDate, tvBrewingStartDate,
             tvCompletionDate, tvNotes, tvTempAlert;
+    private TextView tvLiveTemperature, tvLivePh, tvFermentationStage;
+    private View liveTempContainer, livePhContainer;
     private Button btnEdit, btnStartBrewing, btnMarkCompleted, btnPauseBrewing,
             btnResumeBrewing, btnBackToDraft, btnRebrew;
     private ProgressBar progressBar;
@@ -63,9 +69,11 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
     // Repository
     private RecipeRepository recipeRepository;
+    private SettingsRepository settingsRepository;
     private FirebaseFirestore db;
     private String recipeId;
     private Recipe currentRecipe;
+    private String temperatureUnit = "celsius"; // Default
 
     private ListenerRegistration readingsListener;
     private ListenerRegistration tempReadingsListener;
@@ -88,6 +96,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         }
 
         recipeRepository = new RecipeRepository();
+        settingsRepository = new SettingsRepository();
         db = FirebaseFirestore.getInstance();
 
         // Initialize toolbar
@@ -113,6 +122,14 @@ public class ViewRecipeActivity extends AppCompatActivity {
         // Load temperature and pH readings
         loadTemperatureReadings();
         loadPhReadings();
+
+        // Load user settings for temperature unit
+        loadUserSettings();
+
+        // Setup pH legend click listener
+        if (livePhContainer != null) {
+            livePhContainer.setOnClickListener(v -> showPhLegend());
+        }
     }
 
     private void initViews() {
@@ -144,6 +161,104 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
         temperatureChart = findViewById(R.id.temperature_chart);
         phChart = findViewById(R.id.ph_chart);
+
+        // Initialize live reading views
+        tvLiveTemperature = findViewById(R.id.tv_live_temperature);
+        tvLivePh = findViewById(R.id.tv_live_ph);
+        tvFermentationStage = findViewById(R.id.tv_fermentation_stage);
+        liveTempContainer = findViewById(R.id.live_temp_container);
+        livePhContainer = findViewById(R.id.live_ph_container);
+    }
+
+    /**
+     * Load user temperature unit preference
+     */
+    private void loadUserSettings() {
+        settingsRepository.getUserSettings(new SettingsRepository.OnSettingsLoadedListener() {
+            @Override
+            public void onSuccess(UserSettings settings) {
+                temperatureUnit = settings.getTemperatureUnit();
+                runOnUiThread(() -> {
+                    // Update temperature display if already showing
+                    if (liveTempContainer != null && liveTempContainer.getVisibility() == View.VISIBLE) {
+                        // Refresh will happen on next sensor update
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(String error) {
+                Log.w(TAG, "Could not load temperature unit preference: " + error);
+                temperatureUnit = "celsius"; // fallback
+            }
+        });
+    }
+
+    /**
+     * Format temperature based on user preference
+     */
+    private String formatTemperature(float tempC) {
+        if ("fahrenheit".equalsIgnoreCase(temperatureUnit)) {
+            float tempF = (tempC * 9/5) + 32;
+            return String.format("%.1f°F", tempF);
+        } else {
+            return String.format("%.1f°C", tempC);
+        }
+    }
+
+    /**
+     * Update live temperature display
+     */
+    private void updateLiveTemperature(float tempC) {
+        runOnUiThread(() -> {
+            if (liveTempContainer != null && tvLiveTemperature != null) {
+                liveTempContainer.setVisibility(View.VISIBLE);
+                tvLiveTemperature.setText(formatTemperature(tempC));
+            }
+        });
+    }
+
+    /**
+     * Update live pH display with color coding
+     */
+    private void updateLivePh(float ph) {
+        runOnUiThread(() -> {
+            if (livePhContainer != null && tvLivePh != null && tvFermentationStage != null) {
+                livePhContainer.setVisibility(View.VISIBLE);
+                tvLivePh.setText(String.format("%.2f", ph));
+                
+                PhFermentationStage.Result result = PhFermentationStage.evaluate(ph);
+                tvLivePh.setTextColor(result.color);
+                tvFermentationStage.setText(result.title);
+                tvFermentationStage.setBackgroundColor(result.color);
+            }
+        });
+    }
+
+    /**
+     * Show pH fermentation stage legend popup
+     */
+    private void showPhLegend() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Fermentation Stages");
+        
+        String message = "<b>🔵 Initial (pH 4.5+)</b><br>" +
+                "Fermentation just started. Sweet tea taste.<br><br>" +
+                
+                "<b>🟠 Active (pH 3.5-4.5)</b><br>" +
+                "Fermentation in progress. Becoming tangy.<br><br>" +
+                
+                "<b>🟢 Optimal (pH 2.5-3.5)</b><br>" +
+                "Perfect for harvesting! Balanced flavor.<br><br>" +
+                
+                "<b>🔴 Taste Test (pH &lt;2.5)</b><br>" +
+                "Very tart and acidic. Taste before bottling.";
+        
+        builder.setMessage(Html.fromHtml(message, Html.FROM_HTML_MODE_LEGACY));
+        builder.setPositiveButton("Got it!", null);
+        
+        AlertDialog dialog = builder.create();
+        dialog.show();
     }
 
     private void loadRecipe() {
@@ -709,6 +824,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         stopPhListener();
         stopChartListener();
     }
+
     private void startReadingListener() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
         stopReadingListener();
@@ -725,6 +841,12 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     Double tempFd = snap.getDocuments().get(0).getDouble("temperature_f");
                     if (tempFd == null) return;
                     float tempF = tempFd.floatValue();
+
+                    // Convert F to C for internal storage
+                    float tempC = (tempF - 32) * 5 / 9;
+
+                    // Update live temperature display
+                    updateLiveTemperature(tempC);
 
                     AlertAdapter.handleNewReading(this, recipeId, tempF, tvTempAlert);
 
@@ -768,6 +890,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     if (phVal == null) return;
 
                     float ph = phVal.floatValue();
+
+                    // Update live pH display
+                    updateLivePh(ph);
 
                     if (currentRecipe != null
                             && "brewing".equalsIgnoreCase(currentRecipe.getStatus())

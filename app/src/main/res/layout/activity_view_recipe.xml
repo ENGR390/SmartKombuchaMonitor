@@ -294,6 +294,7 @@
 
             </LinearLayout>
 
+            <!-- Temperature Section -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -317,6 +318,37 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
+                    <!-- Live Temperature Reading -->
+                    <LinearLayout
+                        android:id="@+id/live_temp_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:background="#F5F5F5"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Current: "
+                            android:textSize="16sp"
+                            android:textColor="#8B4513"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_live_temperature"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="--°C"
+                            android:textSize="24sp"
+                            android:textColor="#D2691E"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
                     <!-- Temperature Graph -->
                     <com.github.mikephil.charting.charts.LineChart
                         android:id="@+id/temperature_chart"
@@ -327,6 +359,7 @@
 
             </androidx.cardview.widget.CardView>
 
+            <!-- pH Section -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -350,7 +383,72 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <!-- Temperature Graph -->
+                    <!-- Live pH Reading -->
+                    <LinearLayout
+                        android:id="@+id/live_ph_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:background="#F5F5F5"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?android:attr/selectableItemBackground">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Current pH: "
+                                android:textSize="16sp"
+                                android:textColor="#8B4513"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tv_live_ph"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textSize="24sp"
+                                android:textStyle="bold" />
+
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tv_fermentation_stage"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:text="Fermentation Stage"
+                            android:textSize="14sp"
+                            android:textStyle="italic"
+                            android:textColor="#FFFFFF"
+                            android:layout_marginTop="4dp"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp"
+                            android:paddingTop="4dp"
+                            android:paddingBottom="4dp"
+                            android:background="@drawable/status_badge" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:text="👆 Tap for fermentation stage info"
+                            android:textSize="12sp"
+                            android:textColor="#757575"
+                            android:layout_marginTop="4dp" />
+
+                    </LinearLayout>
+
+                    <!-- pH Graph -->
                     <com.github.mikephil.charting.charts.LineChart
                         android:id="@+id/ph_chart"
                         android:layout_width="match_parent"
