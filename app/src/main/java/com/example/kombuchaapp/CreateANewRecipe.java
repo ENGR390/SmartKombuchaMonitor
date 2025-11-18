@@ -50,7 +50,7 @@ public class CreateANewRecipe extends AppCompatActivity {
         setSupportActionBar(toolbar);
         Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
-        toolbar.setNavigationOnClickListener(v -> finish());
+        toolbar.setNavigationOnClickListener(v -> onBackPressed());
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -117,9 +117,8 @@ public class CreateANewRecipe extends AppCompatActivity {
                     
                     // Clear input fields
                     clearInputFields();
-                    
-                    // Optional: Navigate back to main activity
-                    finish();
+
+                    FizzTransitionUtil.play(CreateANewRecipe.this, () -> finish());
                 });
             }
 
@@ -184,5 +183,10 @@ public class CreateANewRecipe extends AppCompatActivity {
     private void showLoading(boolean show) {
         progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
         btnSaveRecipe.setEnabled(!show);
+    }
+
+    @Override
+    public void onBackPressed() {
+        FizzTransitionUtil.play(this, CreateANewRecipe.super::onBackPressed);
     }
 }
