@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
         //Existing button listeners
         newRecipeButton.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, CreateANewRecipe.class);
-            startActivity(intent);
+            FizzTransitionUtil.play(MainActivity.this, () -> startActivity(intent));
         });
 
         settingsButton.setOnClickListener(v -> {
@@ -97,7 +97,7 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
             if (itemId == R.id.menu_settings) {
                 // Navigate to settings
                 Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
-                startActivity(intent);
+                FizzTransitionUtil.play(MainActivity.this, () -> startActivity(intent));
                 return true;
             } else if (itemId == R.id.menu_logout) {
                 // Logout
@@ -182,7 +182,9 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
         fAuth.signOut();
         Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
         Intent intent = new Intent(MainActivity.this, Login.class);
-        startActivity(intent);
-        finish();
+        FizzTransitionUtil.play(this, () -> {
+            startActivity(intent);
+            finish();
+        });
     }
 }

@@ -95,7 +95,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
-        toolbar.setNavigationOnClickListener(v -> finish());
+        toolbar.setNavigationOnClickListener(v ->
+                FizzTransitionUtil.play(ViewRecipeActivity.this, this::finish)
+        );
 
         // Initialize views
         initViews();
@@ -253,7 +255,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         btnEdit.setOnClickListener(v -> {
             Intent intent = new Intent(ViewRecipeActivity.this, EditRecipeActivity.class);
             intent.putExtra("recipe_id", recipeId);
-            startActivity(intent);
+            FizzTransitionUtil.play(ViewRecipeActivity.this, () -> startActivity(intent));
         });
 
         btnStartBrewing.setOnClickListener(v -> startBrewingProcess());
@@ -1206,5 +1208,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
         if (recipeId != null) {
             loadRecipe();
         }
+    }
+    @Override
+    public void onBackPressed() {
+        FizzTransitionUtil.play(this, this::finish);
     }
 }
