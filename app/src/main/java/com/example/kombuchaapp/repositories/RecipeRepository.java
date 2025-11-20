@@ -8,6 +8,7 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
 
@@ -71,6 +72,8 @@ public class RecipeRepository {
         recipeData.put("status", recipe.getStatus());
         recipeData.put("createdDate", recipe.getCreatedDate());
         recipeData.put("notes", recipe.getNotes());
+        recipeData.put("published",recipe.getPublished());
+        recipeData.put("likes", recipe.getLikes());
 
         // Add to Firestore (auto-generates document ID)
         recipesRef.add(recipeData)
@@ -363,6 +366,94 @@ public class RecipeRepository {
         }
     }
 
+    public void updateRecipePublished(String recipeId, boolean published, OnUpdateListener listener) {
+        CollectionReference recipesRef = getRecipesCollection();
+
+        if (recipesRef == null) {
+            listener.onFailure("User not logged in");
+            return;
+        }
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("published", published);
+
+        recipesRef.document(recipeId)
+                .update(updates)
+                .addOnSuccessListener(aVoid -> {
+                    listener.onSuccess(published ? "Recipe published" : "Recipe unpublished");
+                })
+                .addOnFailureListener(e -> listener.onFailure(e.getMessage()));
+    }
+
+    public void getAllPublishedRecipes(OnRecipesLoadedListener listener) {
+        FirebaseFirestore fStore = FirebaseFirestore.getInstance();
+
+        fStore.collectionGroup("Recipes")
+                .whereEqualTo("published", true)
+                .orderBy("createdDate", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<Recipe> recipes = new ArrayList<>();
+                    for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                        Recipe recipe = parseRecipe(doc);
+                        if (recipe != null) {
+                            recipes.add(recipe);
+                        }
+                    }
+                    listener.onSuccess(recipes);
+                })
+                .addOnFailureListener(e -> listener.onFailure(e.getMessage()));
+    }
+
+    public void incrementLikes(String recipeId, String ownerUserId, OnUpdateListener listener) {
+
+        FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(ownerUserId)
+                .collection("Recipes")
+                .document(recipeId)
+                .update("likes", FieldValue.increment(1))
+                .addOnSuccessListener(aVoid -> listener.onSuccess("Liked!"))
+                .addOnFailureListener(e -> listener.onFailure(e.getMessage()));
+    }
+
+    public void toggleLike(String recipeId, String ownerUserId, String currentUserId, OnUpdateListener listener) {
+        DocumentReference ref = FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(ownerUserId)
+                .collection("Recipes")
+                .document(recipeId);
+
+        FirebaseFirestore.getInstance().runTransaction(transaction -> {
+            DocumentSnapshot snapshot = transaction.get(ref);
+
+            List<String> likedBy = (List<String>) snapshot.get("likedBy");
+            Long likes = snapshot.getLong("likes");
+
+            if (likedBy == null) likedBy = new ArrayList<>();
+            if (likes == null) likes = 0L;
+
+            if (likedBy.contains(currentUserId)) {
+                // Unlike
+                likedBy.remove(currentUserId);
+                likes -= 1;
+            } else {
+                // Like
+                likedBy.add(currentUserId);
+                likes += 1;
+            }
+
+            transaction.update(ref, "likedBy", likedBy);
+            transaction.update(ref, "likes", likes);
+
+            return null;
+        }).addOnSuccessListener(aVoid -> {
+            listener.onSuccess("Updated");
+        }).addOnFailureListener(e -> {
+            listener.onFailure(e.getMessage());
+        });
+    }
+
     // Parse Firestore document into Recipe object
     private Recipe parseRecipe(DocumentSnapshot doc) {
         Recipe recipe = new Recipe();
@@ -380,6 +471,12 @@ public class RecipeRepository {
         recipe.setCreatedDate(doc.getTimestamp("createdDate"));
         recipe.setBrewingStartDate(doc.getTimestamp("brewingStartDate"));
         recipe.setCompletionDate(doc.getTimestamp("completionDate"));
+        recipe.setPublished(doc.getBoolean("published"));
+        Long likesValue = doc.getLong("likes");
+        recipe.setLikes(likesValue != null ? likesValue.intValue() : 0);
+        List<String> likedByList = (List<String>) doc.get("likedBy");
+        recipe.setLikedBy(likedByList != null ? likedByList : new ArrayList<>());
+
         return recipe;
     }
 
