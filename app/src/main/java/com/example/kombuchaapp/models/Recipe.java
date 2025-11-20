@@ -2,6 +2,9 @@ package com.example.kombuchaapp.models;
 
 import com.google.firebase.Timestamp;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class Recipe {
     
     private String recipeId;
@@ -24,7 +27,13 @@ public class Recipe {
     private Timestamp completionDate;
     private String status;
     private String notes;
-    
+    private Boolean published;
+
+    private int likes = 0;
+
+    private List<String> likedBy = new ArrayList<>();
+
+
     public Recipe() {
         this.status = "draft";
         this.createdDate = Timestamp.now();
@@ -42,6 +51,7 @@ public class Recipe {
         this.flavor = flavor;
         this.status = "draft";
         this.createdDate = Timestamp.now();
+        this.published = false;
     }
     
     public String getRecipeId() { return recipeId; }
@@ -58,7 +68,13 @@ public class Recipe {
     public Timestamp getCompletionDate() { return completionDate; }
     public String getStatus() { return status; }
     public String getNotes() { return notes; }
-    
+    public Boolean getPublished() {return published; }
+    public int getLikes() { return likes; }
+    public List<String> getLikedBy() { return likedBy; }
+
+    public void setLikedBy(List<String> likedBy) {this.likedBy = likedBy; }
+
+
     public void setRecipeId(String recipeId) { this.recipeId = recipeId; }
     public void setUserId(String userId) { this.userId = userId; }
     public void setRecipeName(String recipeName) { this.recipeName = recipeName; }
@@ -73,10 +89,12 @@ public class Recipe {
     public void setCompletionDate(Timestamp completionDate) { this.completionDate = completionDate; }
     public void setStatus(String status) { this.status = status; }
     public void setNotes(String notes) { this.notes = notes; }
+    public void setPublished(Boolean published ) { this.published = published; }
+    public void setLikes(int likes) { this.likes = likes; }
     
     @Override
     public String toString() {
-        return "Recipe{" +
+        return  "Recipe{" +
                 "recipeId='" + recipeId + '\'' +
                 ", userId='" + userId + '\'' +
                 ", recipeName='" + recipeName + '\'' +
@@ -87,7 +105,10 @@ public class Recipe {
                 ", kombuchaStarter='" + kombuchaStarter + '\'' +
                 ", flavor='" + flavor + '\'' +
                 ", status='" + status + '\'' +
-                ", createdDate=" + createdDate +
+                ", createdDate=" + createdDate + '\'' +
+                ", published= "+ published + '\'' +
+                ", likes=" + likes + '\'' +
+                ", likedBy=" + likedBy +
                 '}';
     }
 }
