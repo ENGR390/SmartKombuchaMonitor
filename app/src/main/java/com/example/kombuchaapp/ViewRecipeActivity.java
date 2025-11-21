@@ -81,6 +81,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private ListenerRegistration phNotifyListener;
 
     private boolean hasHarvestNotified = false;
+    
+    // Store current readings for re-rendering when unit changes
+    private List<SensorReadings> currentTempReadings = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -104,7 +107,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
-        toolbar.setNavigationOnClickListener(v -> finish());
+        toolbar.setNavigationOnClickListener(v ->
+                FizzTransitionUtil.play(ViewRecipeActivity.this, this::finish)
+        );
 
         // Initialize views
         initViews();
@@ -184,11 +189,18 @@ public class ViewRecipeActivity extends AppCompatActivity {
                 temperatureUnit = newUnit;
                 
                 runOnUiThread(() -> {
-                    // If unit changed and we have chart data, the listener will automatically
-                    // reload the chart with the new unit
-                    if (unitChanged && temperatureChart.getData() != null) {
-                        // Chart will refresh via the real-time listener
-                        temperatureChart.invalidate();
+                    // If unit changed and we have chart data, re-render with new unit
+                    if (unitChanged && !currentTempReadings.isEmpty()) {
+                        updateTemperatureChart(currentTempReadings);
+                    }
+                    
+                    // Also update live temperature display if visible
+                    if (unitChanged && liveTempContainer != null && 
+                        liveTempContainer.getVisibility() == View.VISIBLE && 
+                        !currentTempReadings.isEmpty()) {
+                        // Get the most recent temperature
+                        SensorReadings latestReading = currentTempReadings.get(currentTempReadings.size() - 1);
+                        updateLiveTemperature(latestReading.getTemperature_c());
                     }
                 });
             }
@@ -375,7 +387,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         btnEdit.setOnClickListener(v -> {
             Intent intent = new Intent(ViewRecipeActivity.this, EditRecipeActivity.class);
             intent.putExtra("recipe_id", recipeId);
-            startActivity(intent);
+            FizzTransitionUtil.play(ViewRecipeActivity.this, () -> startActivity(intent));
         });
 
         btnStartBrewing.setOnClickListener(v -> startBrewingProcess());
@@ -998,6 +1010,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
                     if (snapshots == null || snapshots.isEmpty()) {
                         // No data yet
+                        currentTempReadings.clear(); // Clear stored readings
                         temperatureChart.clear();
                         temperatureChart.setNoDataText("No temperature readings yet");
                         temperatureChart.invalidate();
@@ -1011,6 +1024,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
                         readings.add(reading);
                     }
 
+                    // Store readings for unit conversion
+                    currentTempReadings = new ArrayList<>(readings);
+                    
                     updateTemperatureChart(readings);
                 });
     }
@@ -1343,12 +1359,18 @@ public class ViewRecipeActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         
-        // Reload user settings (in case they changed temperature unit in Settings)
+        // Reload user settings FIRST (in case they changed temperature unit in Settings)
+        // This will automatically refresh the chart if the unit changed
         loadUserSettings();
         
-        // Reload recipe when returning from edit
+        // Then reload recipe when returning from edit
         if (recipeId != null) {
             loadRecipe();
         }
+    }
+    
+    @Override
+    public void onBackPressed() {
+        FizzTransitionUtil.play(this, this::finish);
     }
 }
