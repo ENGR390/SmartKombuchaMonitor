@@ -9,10 +9,12 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.kombuchaapp.models.Recipe;
@@ -112,7 +114,8 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
 
     class RecipeViewHolder extends RecyclerView.ViewHolder {
         TextView recipeName, recipeStatus, recipeTea, recipeWater, recipeSugar, recipeDate, likeCount;
-        Button btnView, btnEdit, btnDelete, btnPublish, btnLike;
+        Button btnView, btnEdit, btnDelete, btnPublish;
+        ImageButton btnLike;
 
         public RecipeViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -128,8 +131,6 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
             btnPublish = itemView.findViewById(R.id.btn_publish);
             btnLike = itemView.findViewById(R.id.btn_like);
             likeCount = itemView.findViewById(R.id.like_count);
-
-
         }
 
         public void bind(Recipe recipe) {
@@ -163,10 +164,12 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
 
             // Set recipe name
             recipeName.setText(recipe.getRecipeName() != null ? recipe.getRecipeName() : "Unnamed Recipe");
+
             //Set recipe like count
             if (likeCount != null) {
-                likeCount.setText(recipe.getLikes() + " Likes");
+                likeCount.setText(String.valueOf(recipe.getLikes()));
             }
+
             // Set status with color
             if (recipeStatus != null){
                 String status = recipe.getStatus() != null ? recipe.getStatus() : "draft";
@@ -263,16 +266,26 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
 
             }
 
-            if (isDiscoverMode && btnLike != null) {
-                btnLike.setOnClickListener(v -> {
-                    Toast.makeText(context, "Liked " + recipe.getRecipeName(), Toast.LENGTH_SHORT).show();
-                });
-            }
-
+            // Handle Like Button in Discover Mode
             if (btnLike != null && isDiscoverMode) {
-                btnLike.setOnClickListener(v -> {
+                String currentUserId = FirebaseAuth.getInstance().getUid();
 
-                    String currentUserId = FirebaseAuth.getInstance().getUid();
+                // Initialize likedBy list if null
+                if (recipe.getLikedBy() == null) {
+                    recipe.setLikedBy(new ArrayList<>());
+                }
+
+                boolean isLiked = recipe.getLikedBy().contains(currentUserId);
+
+                // Set initial icon and color based on like state
+                updateLikeButton(btnLike, isLiked);
+
+                btnLike.setOnClickListener(v -> {
+                    if (currentUserId == null) {
+                        Toast.makeText(context, "Please log in to like recipes", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
                     String ownerUserId = recipe.getUserId();
                     String recipeId = recipe.getRecipeId();
 
@@ -283,30 +296,43 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                         // unlike
                         recipe.getLikedBy().remove(currentUserId);
                         recipe.setLikes(recipe.getLikes() - 1);
-                        likeCount.setText(recipe.getLikes() + " Likes");
+                        updateLikeButton(btnLike, false);
+                        likeCount.setText(String.valueOf(recipe.getLikes()));
                     } else {
                         // like
                         recipe.getLikedBy().add(currentUserId);
                         recipe.setLikes(recipe.getLikes() + 1);
-                        likeCount.setText(recipe.getLikes() + " Likes");
+                        updateLikeButton(btnLike, true);
+                        likeCount.setText(String.valueOf(recipe.getLikes()));
                     }
 
                     // Apply toggle in Firestore
                     recipeRepository.toggleLike(recipeId, ownerUserId, currentUserId, new RecipeRepository.OnUpdateListener() {
                         @Override
                         public void onSuccess(String message) {
-                            // ui already updated
+                            // UI already updated optimistically
                         }
 
                         @Override
                         public void onFailure(String error) {
+                            // Revert optimistic update on failure
+                            if (!userAlreadyLiked) {
+                                // Was a like, revert to unlike
+                                recipe.getLikedBy().remove(currentUserId);
+                                recipe.setLikes(recipe.getLikes() - 1);
+                                updateLikeButton(btnLike, false);
+                            } else {
+                                // Was an unlike, revert to like
+                                recipe.getLikedBy().add(currentUserId);
+                                recipe.setLikes(recipe.getLikes() + 1);
+                                updateLikeButton(btnLike, true);
+                            }
+                            likeCount.setText(String.valueOf(recipe.getLikes()));
                             Toast.makeText(context, "Failed: " + error, Toast.LENGTH_SHORT).show();
                         }
                     });
                 });
             }
-
-
 
             // Card click - navigate to detailed view
             if (!isDiscoverMode) {
@@ -319,6 +345,16 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                 // Disable click in Discover mode
                 itemView.setOnClickListener(null);
                 itemView.setClickable(false);
+            }
+        }
+
+        private void updateLikeButton(ImageButton button, boolean isLiked) {
+            if (isLiked) {
+                button.setImageResource(R.drawable.ic_thumb_up_filled);
+                button.setColorFilter(ContextCompat.getColor(context, android.R.color.holo_blue_dark));
+            } else {
+                button.setImageResource(R.drawable.ic_thumb_up_outline);
+                button.setColorFilter(ContextCompat.getColor(context, android.R.color.darker_gray));
             }
         }
 
@@ -367,7 +403,7 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
         private void deleteRecipe(Recipe recipe, int position) {
             // First, remove from sensor control to prevent new sensor writes during deletion
             removeRecipeForSensors(recipe.getRecipeId());
-            
+
             // Small delay to ensure sensor sees the removal before we start deleting
             new android.os.Handler().postDelayed(() -> {
                 // Now delete the recipe (which will delete all subcollections first)
