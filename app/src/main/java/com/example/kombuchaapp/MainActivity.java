@@ -3,7 +3,7 @@ package com.example.kombuchaapp;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
+import android:view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.PopupMenu;
@@ -97,6 +97,11 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
             if (itemId == R.id.menu_settings) {
                 // Navigate to settings
                 Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+                FizzTransitionUtil.play(MainActivity.this, () -> startActivity(intent));
+                return true;
+            } else if (itemId == R.id.menu_insights) {
+                // Navigate to insights
+                Intent intent = new Intent(MainActivity.this, DataInsightsActivity.class);
                 FizzTransitionUtil.play(MainActivity.this, () -> startActivity(intent));
                 return true;
             } else if (itemId == R.id.menu_logout) {
