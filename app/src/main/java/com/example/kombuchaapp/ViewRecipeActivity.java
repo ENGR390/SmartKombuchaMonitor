@@ -104,9 +104,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
-        toolbar.setNavigationOnClickListener(v ->
-                FizzTransitionUtil.play(ViewRecipeActivity.this, this::finish)
-        );
+        toolbar.setNavigationOnClickListener(v -> finish());
 
         // Initialize views
         initViews();
@@ -179,11 +177,18 @@ public class ViewRecipeActivity extends AppCompatActivity {
         settingsRepository.getUserSettings(new SettingsRepository.OnSettingsLoadedListener() {
             @Override
             public void onSuccess(UserSettings settings) {
-                temperatureUnit = settings.getTemperatureUnit();
+                String newUnit = settings.getTemperatureUnit();
+                
+                // Check if unit changed
+                boolean unitChanged = !newUnit.equals(temperatureUnit);
+                temperatureUnit = newUnit;
+                
                 runOnUiThread(() -> {
-                    // Update temperature display if already showing
-                    if (liveTempContainer != null && liveTempContainer.getVisibility() == View.VISIBLE) {
-                        // Refresh will happen on next sensor update
+                    // If unit changed and we have chart data, the listener will automatically
+                    // reload the chart with the new unit
+                    if (unitChanged && temperatureChart.getData() != null) {
+                        // Chart will refresh via the real-time listener
+                        temperatureChart.invalidate();
                     }
                 });
             }
@@ -370,7 +375,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         btnEdit.setOnClickListener(v -> {
             Intent intent = new Intent(ViewRecipeActivity.this, EditRecipeActivity.class);
             intent.putExtra("recipe_id", recipeId);
-            FizzTransitionUtil.play(ViewRecipeActivity.this, () -> startActivity(intent));
+            startActivity(intent);
         });
 
         btnStartBrewing.setOnClickListener(v -> startBrewingProcess());
@@ -1029,12 +1034,19 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
         for (int i = 0; i < readings.size(); i++) {
             SensorReadings reading = readings.get(i);
-            float temp = reading.getTemperature_c();
-            tempEntries.add(new Entry(i, temp));
+            float tempC = reading.getTemperature_c();
+            
+            // Convert temperature based on user preference
+            float displayTemp = tempC;
+            if ("fahrenheit".equalsIgnoreCase(temperatureUnit)) {
+                displayTemp = (tempC * 9/5) + 32;
+            }
+            
+            tempEntries.add(new Entry(i, displayTemp));
 
             // Track min/max for Y-axis
-            minTemp = Math.min(minTemp, temp);
-            maxTemp = Math.max(maxTemp, temp);
+            minTemp = Math.min(minTemp, displayTemp);
+            maxTemp = Math.max(maxTemp, displayTemp);
 
             // Format timestamp for X-axis label
             try {
@@ -1085,8 +1097,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
         yAxis.setAxisMinimum(minTemp - padding);
         yAxis.setAxisMaximum(maxTemp + padding);
 
-        // Create dataset
-        LineDataSet dataSet = new LineDataSet(tempEntries, "Temperature (°C)");
+        // Create dataset with appropriate label based on unit
+        String unitLabel = "fahrenheit".equalsIgnoreCase(temperatureUnit) ? "Temperature (°F)" : "Temperature (°C)";
+        LineDataSet dataSet = new LineDataSet(tempEntries, unitLabel);
         dataSet.setColor(Color.BLUE);
         dataSet.setCircleColor(Color.BLUE);
         dataSet.setCircleHoleColor(Color.BLACK);
@@ -1329,13 +1342,13 @@ public class ViewRecipeActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        
+        // Reload user settings (in case they changed temperature unit in Settings)
+        loadUserSettings();
+        
         // Reload recipe when returning from edit
         if (recipeId != null) {
             loadRecipe();
         }
-    }
-    @Override
-    public void onBackPressed() {
-        FizzTransitionUtil.play(this, this::finish);
     }
 }
