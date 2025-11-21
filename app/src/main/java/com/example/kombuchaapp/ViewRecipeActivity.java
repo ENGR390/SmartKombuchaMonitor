@@ -6,7 +6,9 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.RatingBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -56,10 +58,14 @@ public class ViewRecipeActivity extends AppCompatActivity {
             tvKombuchaStarter, tvFlavor, tvCreatedDate, tvBrewingStartDate,
             tvCompletionDate, tvNotes, tvTempAlert;
     private Button btnEdit, btnStartBrewing, btnMarkCompleted, btnPauseBrewing,
-            btnResumeBrewing, btnBackToDraft, btnRebrew;
+            btnResumeBrewing, btnBackToDraft, btnRebrew, btnAddReview;
     private ProgressBar progressBar;
-    private View notesSection, flavorSection;
+    private View notesSection, flavorSection, reviewSection;
     private LineChart temperatureChart, phChart;
+
+    // Review UI Components
+    private RatingBar ratingDisplay;
+    private TextView tvReviewNotes, tvNoReview;
 
     // Repository
     private RecipeRepository recipeRepository;
@@ -138,9 +144,15 @@ public class ViewRecipeActivity extends AppCompatActivity {
         btnResumeBrewing = findViewById(R.id.btn_resume_brewing);
         btnBackToDraft = findViewById(R.id.btn_back_to_draft);
         btnRebrew = findViewById(R.id.btn_rebrew);
+        btnAddReview = findViewById(R.id.btn_add_review);
 
         notesSection = findViewById(R.id.notes_section);
         flavorSection = findViewById(R.id.flavor_section);
+        reviewSection = findViewById(R.id.review_section);
+
+        ratingDisplay = findViewById(R.id.rating_display);
+        tvReviewNotes = findViewById(R.id.tv_review_notes);
+        tvNoReview = findViewById(R.id.tv_no_review);
 
         temperatureChart = findViewById(R.id.temperature_chart);
         phChart = findViewById(R.id.ph_chart);
@@ -156,6 +168,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     showLoading(false);
                     currentRecipe = recipe;
                     displayRecipe(recipe);
+                    displayReview(recipe);
                 });
             }
 
@@ -217,6 +230,48 @@ public class ViewRecipeActivity extends AppCompatActivity {
         }
     }
 
+    private void displayReview(Recipe recipe) {
+        String status = recipe.getStatus() != null ? recipe.getStatus() : "draft";
+
+        // Only show review section for completed brews
+        if ("completed".equalsIgnoreCase(status)) {
+            reviewSection.setVisibility(View.VISIBLE);
+
+            Float rating = recipe.getRating();
+            String reviewNotes = recipe.getReviewNotes();
+
+            if (rating != null && rating > 0) {
+                // Has review
+                ratingDisplay.setVisibility(View.VISIBLE);
+                tvReviewNotes.setVisibility(View.VISIBLE);
+                tvNoReview.setVisibility(View.GONE);
+
+                ratingDisplay.setRating(rating);
+                ratingDisplay.setIsIndicator(true); // Make it read-only
+
+                if (reviewNotes != null && !reviewNotes.trim().isEmpty()) {
+                    tvReviewNotes.setText(reviewNotes);
+                } else {
+                    tvReviewNotes.setText("No additional notes");
+                }
+
+                btnAddReview.setText("Edit Review");
+            } else {
+                // No review yet
+                ratingDisplay.setVisibility(View.GONE);
+                tvReviewNotes.setVisibility(View.GONE);
+                tvNoReview.setVisibility(View.VISIBLE);
+
+                btnAddReview.setText("Add Review");
+            }
+
+            btnAddReview.setVisibility(View.VISIBLE);
+        } else {
+            reviewSection.setVisibility(View.GONE);
+            btnAddReview.setVisibility(View.GONE);
+        }
+    }
+
     private void updateButtonsForStatus(String status) {
         // Hide all action buttons first
         btnStartBrewing.setVisibility(View.GONE);
@@ -262,6 +317,138 @@ public class ViewRecipeActivity extends AppCompatActivity {
         btnResumeBrewing.setOnClickListener(v -> resumeBrewing());
         btnBackToDraft.setOnClickListener(v -> confirmBackToDraft());
         btnRebrew.setOnClickListener(v -> confirmRebrew());
+        btnAddReview.setOnClickListener(v -> showReviewDialog());
+    }
+
+    private void showReviewDialog() {
+        // Create custom dialog view
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_review, null);
+
+        RatingBar ratingBar = dialogView.findViewById(R.id.rating_bar);
+        EditText etReviewNotes = dialogView.findViewById(R.id.et_review_notes);
+
+        // Pre-fill if review exists
+        if (currentRecipe.getRating() != null && currentRecipe.getRating() > 0) {
+            ratingBar.setRating(currentRecipe.getRating());
+        }
+        if (currentRecipe.getReviewNotes() != null) {
+            etReviewNotes.setText(currentRecipe.getReviewNotes());
+        }
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Rate Your Brew")
+                .setView(dialogView)
+                .setPositiveButton("Save", null)
+                .setNegativeButton("Cancel", null)
+                .setNeutralButton("Delete Review", null)
+                .create();
+
+        dialog.setOnShowListener(dialogInterface -> {
+            Button saveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            Button deleteButton = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+
+            // Only show delete button if review exists
+            if (currentRecipe.getRating() == null || currentRecipe.getRating() == 0) {
+                deleteButton.setVisibility(View.GONE);
+            }
+
+            saveButton.setOnClickListener(v -> {
+                float rating = ratingBar.getRating();
+                String notes = etReviewNotes.getText().toString().trim();
+
+                if (rating == 0) {
+                    Toast.makeText(this, "Please add a rating", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                saveReview(rating, notes);
+                dialog.dismiss();
+            });
+
+            deleteButton.setOnClickListener(v -> {
+                new AlertDialog.Builder(this)
+                        .setTitle("Delete Review")
+                        .setMessage("Are you sure you want to delete this review?")
+                        .setPositiveButton("Delete", (d, w) -> {
+                            deleteReview();
+                            dialog.dismiss();
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            });
+        });
+
+        dialog.show();
+    }
+
+    private void saveReview(float rating, String notes) {
+        showLoading(true);
+
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            showLoading(false);
+            Toast.makeText(this, "Error: User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("rating", rating);
+        updates.put("reviewNotes", notes);
+        updates.put("reviewDate", Timestamp.now());
+
+        db.collection("users").document(user.getUid())
+                .collection("Recipes").document(recipeId)
+                .update(updates)
+                .addOnSuccessListener(aVoid -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(this, "Review saved!", Toast.LENGTH_SHORT).show();
+                        loadRecipe(); // Reload to show updated review
+                    });
+                })
+                .addOnFailureListener(e -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(this, "Failed to save review: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                        Log.e(TAG, "Failed to save review", e);
+                    });
+                });
+    }
+
+    private void deleteReview() {
+        showLoading(true);
+
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            showLoading(false);
+            Toast.makeText(this, "Error: User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("rating", null);
+        updates.put("reviewNotes", null);
+        updates.put("reviewDate", null);
+
+        db.collection("users").document(user.getUid())
+                .collection("Recipes").document(recipeId)
+                .update(updates)
+                .addOnSuccessListener(aVoid -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(this, "Review deleted", Toast.LENGTH_SHORT).show();
+                        loadRecipe(); // Reload to update UI
+                    });
+                })
+                .addOnFailureListener(e -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(this, "Failed to delete review: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                        Log.e(TAG, "Failed to delete review", e);
+                    });
+                });
     }
 
     private void startBrewingProcess() {
@@ -270,7 +457,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         // Check the central sensor_control document
         db.collection("sensor_control").document("active_config").get()
                 .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
+                   if (documentSnapshot.exists()) {
                         // Check if another recipe is already active
                         String activeRecipeId = documentSnapshot.getString("active_recipe_id");
 
@@ -285,6 +472,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
                             return; // Stop here
                         }
                     }
+
                     // If the document doesn't exist, or no recipe is active, proceed to start brewing.
                     runOnUiThread(() -> updateRecipeStatus("brewing"));
 
@@ -810,7 +998,10 @@ public class ViewRecipeActivity extends AppCompatActivity {
         temperatureChart.setTouchEnabled(true);
         temperatureChart.setDragEnabled(true);
         temperatureChart.setScaleEnabled(true);
+        temperatureChart.setScaleXEnabled(true);
+        temperatureChart.setScaleYEnabled(true);
         temperatureChart.setPinchZoom(true);
+        temperatureChart.setDoubleTapToZoomEnabled(true);
 
         // Customize Axes
         XAxis xAxis = temperatureChart.getXAxis();
@@ -1008,7 +1199,10 @@ public class ViewRecipeActivity extends AppCompatActivity {
         phChart.setTouchEnabled(true);
         phChart.setDragEnabled(true);
         phChart.setScaleEnabled(true);
+        phChart.setScaleXEnabled(true);
+        phChart.setScaleYEnabled(true);
         phChart.setPinchZoom(true);
+        phChart.setDoubleTapToZoomEnabled(true);
 
         // Customize Axes
         XAxis xAxis = phChart.getXAxis();
