@@ -6,21 +6,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Recipe {
-    
+
     private String recipeId;
     private String userId;
     private String recipeName;
-    
+
     // First Fermentation Ingredients
     private String teaLeaf;
     private String water;
     private String sugar;
     private String scoby;
     private String kombuchaStarter;
-    
+
     // Second Fermentation
     private String flavor;
-    
+
     // Metadata
     private Timestamp createdDate;
     private Timestamp brewingStartDate;
@@ -33,13 +33,18 @@ public class Recipe {
 
     private List<String> likedBy = new ArrayList<>();
 
+    // Review fields
+    private Float rating;
+    private String reviewNotes;
+    private Timestamp reviewDate;
+
 
     public Recipe() {
         this.status = "draft";
         this.createdDate = Timestamp.now();
     }
-    
-    public Recipe(String userId, String recipeName, String teaLeaf, String water, 
+
+    public Recipe(String userId, String recipeName, String teaLeaf, String water,
                   String sugar, String scoby, String kombuchaStarter, String flavor) {
         this.userId = userId;
         this.recipeName = recipeName;
@@ -53,7 +58,7 @@ public class Recipe {
         this.createdDate = Timestamp.now();
         this.published = false;
     }
-    
+
     public String getRecipeId() { return recipeId; }
     public String getUserId() { return userId; }
     public String getRecipeName() { return recipeName; }
@@ -71,9 +76,11 @@ public class Recipe {
     public Boolean getPublished() {return published; }
     public int getLikes() { return likes; }
     public List<String> getLikedBy() { return likedBy; }
+    public Float getRating() { return rating; }
+    public String getReviewNotes() { return reviewNotes; }
+    public Timestamp getReviewDate() { return reviewDate; }
 
     public void setLikedBy(List<String> likedBy) {this.likedBy = likedBy; }
-
 
     public void setRecipeId(String recipeId) { this.recipeId = recipeId; }
     public void setUserId(String userId) { this.userId = userId; }
@@ -91,7 +98,10 @@ public class Recipe {
     public void setNotes(String notes) { this.notes = notes; }
     public void setPublished(Boolean published ) { this.published = published; }
     public void setLikes(int likes) { this.likes = likes; }
-    
+    public void setRating(Float rating) { this.rating = rating; }
+    public void setReviewNotes(String reviewNotes) { this.reviewNotes = reviewNotes; }
+    public void setReviewDate(Timestamp reviewDate) { this.reviewDate = reviewDate; }
+
     @Override
     public String toString() {
         return  "Recipe{" +
@@ -108,7 +118,9 @@ public class Recipe {
                 ", createdDate=" + createdDate + '\'' +
                 ", published= "+ published + '\'' +
                 ", likes=" + likes + '\'' +
-                ", likedBy=" + likedBy +
+                ", likedBy=" + likedBy + '\'' +
+                ", rating=" + rating + '\'' +
+                ", reviewNotes='" + reviewNotes + '\'' +
                 '}';
     }
 }
