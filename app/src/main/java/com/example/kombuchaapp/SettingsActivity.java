@@ -71,7 +71,8 @@ public class SettingsActivity extends AppCompatActivity {
     private void initViews() {
         toolbar = findViewById(R.id.toolbar);
         ImageButton btnBack = findViewById(R.id.btn_back);
-        btnBack.setOnClickListener(v -> finish());
+        btnBack.setOnClickListener(v -> FizzTransitionUtil.play(SettingsActivity.this, this::finish)
+        );
 
         progressBar = new ProgressBar(this);
         progressBar.setVisibility(View.GONE);
@@ -349,5 +350,9 @@ public class SettingsActivity extends AppCompatActivity {
         if (btnSaveAccount != null) {
             btnSaveAccount.setEnabled(!show);
         }
+    }
+    @Override
+    public void onBackPressed() {
+        FizzTransitionUtil.play(this, this::finish);
     }
 }
