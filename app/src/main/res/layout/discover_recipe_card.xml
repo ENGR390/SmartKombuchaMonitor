@@ -1,124 +1,353 @@
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/recipe_card"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="4dp"
-    android:clickable="true"
-    android:focusable="true"
-    android:foreground="?android:attr/selectableItemBackground">
+package com.example.kombuchaapp;
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.text.TextUtils;
+import android.text.method.HideReturnsTransformationMethod;
+import android.text.method.PasswordTransformationMethod;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android:widget.ImageButton;
+import android.widget.ProgressBar;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.TextView;
+import android.widget.Toast;
 
-        <!-- Recipe Name Header -->
-        <TextView
-            android:id="@+id/recipe_name"
-            android:layout_width="367dp"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:text="Recipe Name"
-            android:textColor="#1A1A1A"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 
-        <!-- Status Badge -->
-        <TextView
-            android:id="@+id/recipe_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="draft"
-            android:textSize="12sp"
-            android:textColor="#FFFFFF"
-            android:background="@drawable/status_badge"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
-            android:layout_marginBottom="12dp" />
+import com.example.kombuchaapp.models.UserSettings;
+import com.example.kombuchaapp.repositories.SettingsRepository;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
-        <!-- Recipe Details Container -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="#F5F5F5"
-            android:padding="12dp"
-            android:layout_marginBottom="12dp">
+public class SettingsActivity extends AppCompatActivity {
 
-            <TextView
-                android:id="@+id/recipe_tea"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Tea: Black Tea"
-                android:textSize="14sp"
-                android:textColor="#424242"
-                android:layout_marginBottom="4dp" />
+    private static final String TAG = "SettingsActivity";
 
-            <TextView
-                android:id="@+id/recipe_water"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Water: 12 cups"
-                android:textSize="14sp"
-                android:textColor="#424242"
-                android:layout_marginBottom="4dp" />
+    // UI Components
+    private EditText etUsername, etEmail, etPassword;
+    private CheckBox cbShowPassword;
+    private Button btnSaveAccount;
+    private RadioGroup groupUnits;
+    private RadioButton optCelsius, optFahrenheit;
+    private Toolbar toolbar;
+    private ProgressBar progressBar;
 
-            <TextView
-                android:id="@+id/recipe_sugar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Sugar: 3/4 cups"
-                android:textSize="14sp"
-                android:textColor="#424242" />
+    // Backend - Firebase Auth (same as login system)
+    private FirebaseAuth fAuth;
+    private SettingsRepository settingsRepo;
+    private UserSettings currentSettings;
 
-        </LinearLayout>
+    // Local cache
+    private SharedPreferences sharedPrefs;
+    private static final String PREFS_NAME = "SettingsCache";
 
-        <!-- Created Date -->
-        <TextView
-            android:id="@+id/recipe_date"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Created: Oct 28, 2025"
-            android:textSize="12sp"
-            android:textColor="#757575"
-            android:layout_marginBottom="12dp" />
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.settings_activity);
 
-        <!-- Action Buttons -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingTop="4dp">
+        // Initialize Firebase Auth (same as Login.java)
+        fAuth = FirebaseAuth.getInstance();
+        settingsRepo = new SettingsRepository();
+        sharedPrefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
-            <ImageButton
-                android:id="@+id/btn_like"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_thumb_up_outline"
-                android:contentDescription="Like recipe"
-                android:scaleType="fitCenter"
-                android:padding="8dp" />
+        // Initialize UI
+        initViews();
+        setupListeners();
 
-            <TextView
-                android:id="@+id/like_count"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0"
-                android:textSize="16sp"
-                android:textColor="#555"
-                android:layout_marginStart="4dp" />
+        // Load settings
+        loadSettings();
+    }
 
-        </LinearLayout>
+    private void initViews() {
+        toolbar = findViewById(R.id.toolbar);
+        ImageButton btnBack = findViewById(R.id.btn_back);
+        btnBack.setOnClickListener(v -> finish());
 
-    </LinearLayout>
+        progressBar = new ProgressBar(this);
+        progressBar.setVisibility(View.GONE);
 
-</androidx.cardview.widget.CardView>
+        etUsername = findViewById(R.id.et_username);
+        etEmail = findViewById(R.id.et_email);
+        etPassword = findViewById(R.id.et_password);
+        cbShowPassword = findViewById(R.id.cb_show_password);
+        btnSaveAccount = findViewById(R.id.btn_save_account);
+
+        groupUnits = findViewById(R.id.group_units);
+        optCelsius = findViewById(R.id.opt_celsius);
+        optFahrenheit = findViewById(R.id.opt_fahrenheit);
+    }
+
+    private void setupListeners() {
+        cbShowPassword.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                etPassword.setTransformationMethod(HideReturnsTransformationMethod.getInstance());
+            } else {
+                etPassword.setTransformationMethod(PasswordTransformationMethod.getInstance());
+            }
+            etPassword.setSelection(etPassword.getText().length());
+        });
+
+        btnSaveAccount.setOnClickListener(v -> saveAccountInfo());
+
+        groupUnits.setOnCheckedChangeListener((group, checkedId) -> {
+            String unit = (checkedId == R.id.opt_celsius) ? "celsius" : "fahrenheit";
+            saveTemperatureUnit(unit);
+        });
+    }
+
+    /**
+     * Load settings (username from Firestore, email from Firebase Auth)
+     */
+    private void loadSettings() {
+        FirebaseUser user = fAuth.getCurrentUser();
+
+        if (user == null) {
+            Toast.makeText(this, "Please login first", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        showLoading(true);
+
+        settingsRepo.getUserSettings(new SettingsRepository.OnSettingsLoadedListener() {
+            @Override
+            public void onSuccess(UserSettings settings) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    currentSettings = settings;
+                    displaySettings(settings);
+                    cacheSettingsLocally(settings);
+                    Log.d(TAG, "Settings loaded: " + settings.toString());
+                });
+            }
+
+            @Override
+            public void onFailure(String error) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(SettingsActivity.this,
+                            "Error loading settings: " + error,
+                            Toast.LENGTH_SHORT).show();
+                    loadCachedSettings();
+                });
+            }
+        });
+    }
+
+    private void displaySettings(UserSettings settings) {
+        etUsername.setText(settings.getfName());
+        etEmail.setText(settings.getEmail());
+
+        if ("celsius".equals(settings.getTemperatureUnit())) {
+            optCelsius.setChecked(true);
+        } else {
+            optFahrenheit.setChecked(true);
+        }
+    }
+
+    /**
+     * Save account info
+     * Username → Firestore (via repository)
+     * Email → Firebase Auth directly (same as ForgotPassword.java)
+     * Password → Firebase Auth directly (same as ForgotPassword.java)
+     */
+    private void saveAccountInfo() {
+        String username = etUsername.getText().toString().trim();
+        String email = etEmail.getText().toString().trim();
+        String password = etPassword.getText().toString().trim();
+
+        if (TextUtils.isEmpty(username) && TextUtils.isEmpty(email) && TextUtils.isEmpty(password)) {
+            Toast.makeText(this, "Please enter at least one field to update", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Validate email format
+        if (!TextUtils.isEmpty(email) && !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            etEmail.setError("Invalid email format");
+            return;
+        }
+
+        // Validate password length
+        if (!TextUtils.isEmpty(password) && password.length() < 6) {
+            etPassword.setError("Password must be at least 6 characters");
+            return;
+        }
+
+        showLoading(true);
+
+        // Update username in Firestore (ONLY if changed)
+        if (!TextUtils.isEmpty(username) && !username.equals(currentSettings.getfName())) {
+            settingsRepo.updateUsername(username, new SettingsRepository.OnUpdateListener() {
+                @Override
+                public void onSuccess(String message) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(SettingsActivity.this, message, Toast.LENGTH_SHORT).show();
+                        currentSettings.setfName(username);
+                    });
+                }
+
+                @Override
+                public void onFailure(String error) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(SettingsActivity.this,
+                                "Failed to update username: " + error,
+                                Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+        }
+
+        // Update email in Firebase Auth directly (same pattern as ForgotPassword.java)
+        if (!TextUtils.isEmpty(email)) {
+            updateFirebaseAuthEmail(email);
+        }
+
+        // Update password in Firebase Auth directly (same pattern as ForgotPassword.java)
+        if (!TextUtils.isEmpty(password)) {
+            updateFirebaseAuthPassword(password);
+        }
+
+        showLoading(false);
+        etPassword.setText(""); // Clear password field
+    }
+
+    /**
+     * Update email in Firebase Auth (same as login system)
+     */
+    private void updateFirebaseAuthEmail(String newEmail) {
+        FirebaseUser user = fAuth.getCurrentUser();
+
+        if (user == null) {
+            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        user.updateEmail(newEmail)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d(TAG, "Email updated in Firebase Auth");
+                        Toast.makeText(SettingsActivity.this,
+                                "Email updated successfully",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.e(TAG, "Failed to update email: " + e.getMessage());
+                        Toast.makeText(SettingsActivity.this,
+                                "Email update failed: " + e.getMessage(),
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
+    /**
+     * Update password in Firebase Auth (same pattern as ForgotPassword.java)
+     * Note: If this fails with "requires recent authentication", user needs to logout and login again
+     */
+    private void updateFirebaseAuthPassword(String newPassword) {
+        FirebaseUser user = fAuth.getCurrentUser();
+
+        if (user == null) {
+            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        user.updatePassword(newPassword)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d(TAG, "Password updated in Firebase Auth");
+                        Toast.makeText(SettingsActivity.this,
+                                "Password updated successfully",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.e(TAG, "Failed to update password: " + e.getMessage());
+
+                        // Handle re-authentication error
+                        if (e.getMessage() != null && e.getMessage().contains("requires recent authentication")) {
+                            Toast.makeText(SettingsActivity.this,
+                                    "Please logout and login again to change your password",
+                                    Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(SettingsActivity.this,
+                                    "Password update failed: " + e.getMessage(),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    }
+                });
+    }
+
+    /**
+     * Save temperature unit to Firestore
+     */
+    private void saveTemperatureUnit(String unit) {
+        settingsRepo.updateTemperatureUnit(unit, new SettingsRepository.OnUpdateListener() {
+            @Override
+            public void onSuccess(String message) {
+                Log.d(TAG, "Temperature unit saved: " + unit);
+                cachePreference("temperatureUnit", unit);
+            }
+
+            @Override
+            public void onFailure(String error) {
+                Toast.makeText(SettingsActivity.this,
+                        "Failed to save: " + error,
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void cacheSettingsLocally(UserSettings settings) {
+        SharedPreferences.Editor editor = sharedPrefs.edit();
+        editor.putString("fName", settings.getfName());
+        editor.putString("email", settings.getEmail());
+        editor.putString("temperatureUnit", settings.getTemperatureUnit());
+        editor.apply();
+    }
+
+    private void cachePreference(String key, Object value) {
+        SharedPreferences.Editor editor = sharedPrefs.edit();
+        if (value instanceof String) {
+            editor.putString(key, (String) value);
+        } else if (value instanceof Integer) {
+            editor.putInt(key, (Integer) value);
+        }
+        editor.apply();
+    }
+
+    private void loadCachedSettings() {
+        String name = sharedPrefs.getString("fName", "");
+        String email = sharedPrefs.getString("email", "");
+        String tempUnit = sharedPrefs.getString("temperatureUnit", "celsius");
+
+        UserSettings cachedSettings = new UserSettings();
+        cachedSettings.setfName(name);
+        cachedSettings.setEmail(email);
+        cachedSettings.setTemperatureUnit(tempUnit);
+
+        displaySettings(cachedSettings);
+    }
+
+    private void showLoading(boolean show) {
+        if (btnSaveAccount != null) {
+            btnSaveAccount.setEnabled(!show);
+        }
+    }
+}
