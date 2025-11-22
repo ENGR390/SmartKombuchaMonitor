@@ -118,6 +118,11 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
                 Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
                 FizzTransitionUtil.play(MainActivity.this, () -> startActivity(intent));
                 return true;
+            } else if (itemId == R.id.menu_insights) {
+                // Navigate to insights
+                Intent intent = new Intent(MainActivity.this, DataInsightsActivity.class);
+                FizzTransitionUtil.play(MainActivity.this, () -> startActivity(intent));
+                return true;
             } else if (itemId == R.id.menu_logout) {
                 // Logout
                 logout();
