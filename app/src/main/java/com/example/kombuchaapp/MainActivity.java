@@ -94,12 +94,16 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
             loadMyRecipes();
             myBrewButton.setTypeface(null, android.graphics.Typeface.BOLD);
             discoverButton.setTypeface(null, android.graphics.Typeface.NORMAL);
+            // Show create button in My Brews mode
+            newRecipeButton.setVisibility(View.VISIBLE);
         });
         discoverButton.setOnClickListener(v -> {
             recipeAdapter.setDiscoverMode(true);
             loadDiscoverRecipes();
             myBrewButton.setTypeface(null, android.graphics.Typeface.NORMAL);
             discoverButton.setTypeface(null, android.graphics.Typeface.BOLD);
+            // Hide create button in Discover mode
+            newRecipeButton.setVisibility(View.GONE);
         });
     }
 
