@@ -1,418 +1,353 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/root"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fillViewport="true"
-    android:background="#FFF5E6">
+package com.example.kombuchaapp;
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical">
+import android.content.SharedPreferences;
+import android.os.Bundle;
+import android.text.TextUtils;
+import android.text.method.HideReturnsTransformationMethod;
+import android.text.method.PasswordTransformationMethod;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.EditText;
+import android:widget.ImageButton;
+import android.widget.ProgressBar;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
+import android.widget.TextView;
+import android.widget.Toast;
 
-        <androidx.appcompat.widget.Toolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:background="@drawable/gradient_orange_header"
-            android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-            app:contentInsetStartWithNavigation="0dp">
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 
-            <ImageButton
-                android:id="@+id/btn_back"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:layout_gravity="start|center_vertical"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Navigate back"
-                android:padding="12dp"
-                android:src="@android:drawable/ic_menu_revert" />
+import com.example.kombuchaapp.models.UserSettings;
+import com.example.kombuchaapp.repositories.SettingsRepository;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
-            <TextView
-                android:id="@+id/toolbar_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="Settings"
-                android:textColor="@android:color/white"
-                android:textStyle="bold"
-                android:textSize="18sp"/>
-        </androidx.appcompat.widget.Toolbar>
+public class SettingsActivity extends AppCompatActivity {
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+    private static final String TAG = "SettingsActivity";
 
-            <!-- SECTION: Account -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="ACCOUNT"
-                android:textAllCaps="true"
-                android:letterSpacing="0.05"
-                android:textSize="12sp"
-                android:textColor="#D2691E"
-                android:textStyle="bold"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="8dp" />
+    // UI Components
+    private EditText etUsername, etEmail, etPassword;
+    private CheckBox cbShowPassword;
+    private Button btnSaveAccount;
+    private RadioGroup groupUnits;
+    private RadioButton optCelsius, optFahrenheit;
+    private Toolbar toolbar;
+    private ProgressBar progressBar;
 
-            <LinearLayout
-                android:id="@+id/card_account"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="#FFFFFF"
-                android:elevation="2dp"
-                android:padding="16dp">
+    // Backend - Firebase Auth (same as login system)
+    private FirebaseAuth fAuth;
+    private SettingsRepository settingsRepo;
+    private UserSettings currentSettings;
 
-                <TextView
-                    android:id="@+id/txt_account_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Change User Information"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#8B4513" />
+    // Local cache
+    private SharedPreferences sharedPrefs;
+    private static final String PREFS_NAME = "SettingsCache";
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="#CD853F"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginBottom="12dp"/>
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.settings_activity);
 
-                <!-- Username -->
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Username"
-                    android:textSize="14sp"
-                    android:textColor="#8B4513" />
+        // Initialize Firebase Auth (same as Login.java)
+        fAuth = FirebaseAuth.getInstance();
+        settingsRepo = new SettingsRepository();
+        sharedPrefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 
-                <EditText
-                    android:id="@+id/et_username"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="48dp"
-                    android:paddingVertical="12dp"
-                    android:hint="Enter username"
-                    android:inputType="textPersonName"
-                    android:autofillHints="username"
-                    android:importantForAutofill="yes"
-                    android:textColor="#8B4513"
-                    android:textColorHint="#CD853F"
-                    android:backgroundTint="#FF8C00"
-                    tools:ignore="HardcodedText" />
+        // Initialize UI
+        initViews();
+        setupListeners();
 
-                <!-- Email -->
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Email"
-                    android:textSize="14sp"
-                    android:textColor="#8B4513"
-                    android:layout_marginTop="12dp" />
+        // Load settings
+        loadSettings();
+    }
 
-                <EditText
-                    android:id="@+id/et_email"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="48dp"
-                    android:paddingVertical="12dp"
-                    android:hint="name@example.com"
-                    android:inputType="textEmailAddress"
-                    android:autofillHints="emailAddress"
-                    android:importantForAutofill="yes"
-                    android:textColor="#8B4513"
-                    android:textColorHint="#CD853F"
-                    android:backgroundTint="#FF8C00"
-                    tools:ignore="HardcodedText" />
+    private void initViews() {
+        toolbar = findViewById(R.id.toolbar);
+        ImageButton btnBack = findViewById(R.id.btn_back);
+        btnBack.setOnClickListener(v -> finish());
 
-                <!-- Old Password (NEW) -->
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Current Password"
-                    android:textSize="14sp"
-                    android:textColor="#8B4513"
-                    android:layout_marginTop="12dp" />
+        progressBar = new ProgressBar(this);
+        progressBar.setVisibility(View.GONE);
 
-                <EditText
-                    android:id="@+id/et_old_password"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="48dp"
-                    android:paddingVertical="12dp"
-                    android:hint="Enter current password"
-                    android:inputType="textPassword"
-                    android:autofillHints="password"
-                    android:importantForAutofill="yes"
-                    android:textColor="#8B4513"
-                    android:textColorHint="#CD853F"
-                    android:backgroundTint="#FF8C00"
-                    tools:ignore="HardcodedText" />
+        etUsername = findViewById(R.id.et_username);
+        etEmail = findViewById(R.id.et_email);
+        etPassword = findViewById(R.id.et_password);
+        cbShowPassword = findViewById(R.id.cb_show_password);
+        btnSaveAccount = findViewById(R.id.btn_save_account);
 
-                <!-- New Password -->
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="New Password"
-                    android:textSize="14sp"
-                    android:textColor="#8B4513"
-                    android:layout_marginTop="12dp" />
+        groupUnits = findViewById(R.id.group_units);
+        optCelsius = findViewById(R.id.opt_celsius);
+        optFahrenheit = findViewById(R.id.opt_fahrenheit);
+    }
 
-                <EditText
-                    android:id="@+id/et_password"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="48dp"
-                    android:paddingVertical="12dp"
-                    android:hint="Enter new password"
-                    android:inputType="textPassword"
-                    android:autofillHints="password"
-                    android:importantForAutofill="yes"
-                    android:textColor="#8B4513"
-                    android:textColorHint="#CD853F"
-                    android:backgroundTint="#FF8C00"
-                    tools:ignore="HardcodedText" />
+    private void setupListeners() {
+        cbShowPassword.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                etPassword.setTransformationMethod(HideReturnsTransformationMethod.getInstance());
+            } else {
+                etPassword.setTransformationMethod(PasswordTransformationMethod.getInstance());
+            }
+            etPassword.setSelection(etPassword.getText().length());
+        });
 
-                <CheckBox
-                    android:id="@+id/cb_show_password"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Show passwords"
-                    android:textColor="#8B4513"
-                    android:layout_marginTop="6dp" />
+        btnSaveAccount.setOnClickListener(v -> saveAccountInfo());
 
-                <Button
-                    android:id="@+id/btn_save_account"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Save"
-                    android:layout_marginTop="16dp"
-                    android:backgroundTint="#FF6D00"
-                    android:textColor="@android:color/white" />
-            </LinearLayout>
+        groupUnits.setOnCheckedChangeListener((group, checkedId) -> {
+            String unit = (checkedId == R.id.opt_celsius) ? "celsius" : "fahrenheit";
+            saveTemperatureUnit(unit);
+        });
+    }
 
-            <!-- SECTION: Units -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="UNITS"
-                android:textAllCaps="true"
-                android:letterSpacing="0.05"
-                android:textSize="12sp"
-                android:textColor="#D2691E"
-                android:textStyle="bold"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="8dp" />
+    /**
+     * Load settings (username from Firestore, email from Firebase Auth)
+     */
+    private void loadSettings() {
+        FirebaseUser user = fAuth.getCurrentUser();
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="#FFFFFF"
-                android:elevation="2dp"
-                android:padding="16dp">
+        if (user == null) {
+            Toast.makeText(this, "Please login first", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
-                <TextView
-                    android:id="@+id/txt_units_label"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Temperature Unit"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#8B4513" />
+        showLoading(true);
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="#CD853F"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginBottom="12dp"/>
+        settingsRepo.getUserSettings(new SettingsRepository.OnSettingsLoadedListener() {
+            @Override
+            public void onSuccess(UserSettings settings) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    currentSettings = settings;
+                    displaySettings(settings);
+                    cacheSettingsLocally(settings);
+                    Log.d(TAG, "Settings loaded: " + settings.toString());
+                });
+            }
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:paddingBottom="4dp">
+            @Override
+            public void onFailure(String error) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    Toast.makeText(SettingsActivity.this,
+                            "Error loading settings: " + error,
+                            Toast.LENGTH_SHORT).show();
+                    loadCachedSettings();
+                });
+            }
+        });
+    }
 
-                    <RadioGroup
-                        android:id="@+id/group_units"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
+    private void displaySettings(UserSettings settings) {
+        etUsername.setText(settings.getfName());
+        etEmail.setText(settings.getEmail());
 
-                        <RadioButton
-                            android:id="@+id/opt_celsius"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Celsius (°C)"
-                            android:textColor="#8B4513"
-                            android:checked="true"/>
+        if ("celsius".equals(settings.getTemperatureUnit())) {
+            optCelsius.setChecked(true);
+        } else {
+            optFahrenheit.setChecked(true);
+        }
+    }
 
-                        <RadioButton
-                            android:id="@+id/opt_fahrenheit"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Fahrenheit (°F)"
-                            android:textColor="#8B4513"
-                            android:layout_marginStart="24dp"/>
-                    </RadioGroup>
-                </LinearLayout>
-            </LinearLayout>
+    /**
+     * Save account info
+     * Username → Firestore (via repository)
+     * Email → Firebase Auth directly (same as ForgotPassword.java)
+     * Password → Firebase Auth directly (same as ForgotPassword.java)
+     */
+    private void saveAccountInfo() {
+        String username = etUsername.getText().toString().trim();
+        String email = etEmail.getText().toString().trim();
+        String password = etPassword.getText().toString().trim();
 
-            <!-- SECTION: Font Size -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="FONT"
-                android:textAllCaps="true"
-                android:letterSpacing="0.05"
-                android:textSize="12sp"
-                android:textColor="#D2691E"
-                android:textStyle="bold"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="8dp" />
+        if (TextUtils.isEmpty(username) && TextUtils.isEmpty(email) && TextUtils.isEmpty(password)) {
+            Toast.makeText(this, "Please enter at least one field to update", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="#FFFFFF"
-                android:elevation="2dp"
-                android:padding="16dp">
+        // Validate email format
+        if (!TextUtils.isEmpty(email) && !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            etEmail.setError("Invalid email format");
+            return;
+        }
 
-                <TextView
-                    android:id="@+id/txt_font_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Size"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#8B4513" />
+        // Validate password length
+        if (!TextUtils.isEmpty(password) && password.length() < 6) {
+            etPassword.setError("Password must be at least 6 characters");
+            return;
+        }
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="#CD853F"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginBottom="12dp"/>
+        showLoading(true);
 
-                <SeekBar
-                    android:id="@+id/seek_font"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:max="55"
-                    android:progressTint="#FF8C00"
-                    android:thumbTint="#FF8C00" />
+        // Update username in Firestore (ONLY if changed)
+        if (!TextUtils.isEmpty(username) && !username.equals(currentSettings.getfName())) {
+            settingsRepo.updateUsername(username, new SettingsRepository.OnUpdateListener() {
+                @Override
+                public void onSuccess(String message) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(SettingsActivity.this, message, Toast.LENGTH_SHORT).show();
+                        currentSettings.setfName(username);
+                    });
+                }
 
-                <TextView
-                    android:id="@+id/txt_font_preview"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Preview • 100%"
-                    android:textSize="16sp"
-                    android:textColor="#8B4513"
-                    android:layout_marginTop="12dp"/>
-            </LinearLayout>
+                @Override
+                public void onFailure(String error) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(SettingsActivity.this,
+                                "Failed to update username: " + error,
+                                Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+        }
 
-            <!-- SECTION: Appearance -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="App Appearance"
-                android:textAllCaps="true"
-                android:letterSpacing="0.05"
-                android:textSize="12sp"
-                android:textColor="#D2691E"
-                android:textStyle="bold"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="8dp" />
+        // Update email in Firebase Auth directly (same pattern as ForgotPassword.java)
+        if (!TextUtils.isEmpty(email)) {
+            updateFirebaseAuthEmail(email);
+        }
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="#FFFFFF"
-                android:elevation="2dp"
-                android:padding="16dp">
+        // Update password in Firebase Auth directly (same pattern as ForgotPassword.java)
+        if (!TextUtils.isEmpty(password)) {
+            updateFirebaseAuthPassword(password);
+        }
 
-                <TextView
-                    android:id="@+id/txt_color_title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Color"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#8B4513" />
+        showLoading(false);
+        etPassword.setText(""); // Clear password field
+    }
 
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:background="#CD853F"
-                    android:layout_marginTop="12dp"
-                    android:layout_marginBottom="12dp"/>
+    /**
+     * Update email in Firebase Auth (same as login system)
+     */
+    private void updateFirebaseAuthEmail(String newEmail) {
+        FirebaseUser user = fAuth.getCurrentUser();
 
-                <RadioGroup
-                    android:id="@+id/group_colors"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical">
+        if (user == null) {
+            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-                    <RadioButton
-                        android:id="@+id/opt_kombucha"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Kombucha (Orange)"
-                        android:textColor="#8B4513"
-                        android:layout_marginTop="8dp"
-                        android:checked="true"/>
+        user.updateEmail(newEmail)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d(TAG, "Email updated in Firebase Auth");
+                        Toast.makeText(SettingsActivity.this,
+                                "Email updated successfully",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.e(TAG, "Failed to update email: " + e.getMessage());
+                        Toast.makeText(SettingsActivity.this,
+                                "Email update failed: " + e.getMessage(),
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
 
-                    <RadioButton
-                        android:id="@+id/opt_purple"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Purple"
-                        android:textColor="#8B4513"
-                        android:layout_marginTop="8dp"/>
+    /**
+     * Update password in Firebase Auth (same pattern as ForgotPassword.java)
+     * Note: If this fails with "requires recent authentication", user needs to logout and login again
+     */
+    private void updateFirebaseAuthPassword(String newPassword) {
+        FirebaseUser user = fAuth.getCurrentUser();
 
-                    <RadioButton
-                        android:id="@+id/opt_gray"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Gray"
-                        android:textColor="#8B4513"
-                        android:layout_marginTop="8dp"/>
+        if (user == null) {
+            Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-                    <RadioButton
-                        android:id="@+id/opt_blue"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Blue"
-                        android:textColor="#8B4513"
-                        android:layout_marginTop="8dp"/>
+        user.updatePassword(newPassword)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void aVoid) {
+                        Log.d(TAG, "Password updated in Firebase Auth");
+                        Toast.makeText(SettingsActivity.this,
+                                "Password updated successfully",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.e(TAG, "Failed to update password: " + e.getMessage());
 
-                    <RadioButton
-                        android:id="@+id/opt_green"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Green"
-                        android:textColor="#8B4513"
-                        android:layout_marginTop="8dp"/>
+                        // Handle re-authentication error
+                        if (e.getMessage() != null && e.getMessage().contains("requires recent authentication")) {
+                            Toast.makeText(SettingsActivity.this,
+                                    "Please logout and login again to change your password",
+                                    Toast.LENGTH_LONG).show();
+                        } else {
+                            Toast.makeText(SettingsActivity.this,
+                                    "Password update failed: " + e.getMessage(),
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    }
+                });
+    }
 
-                </RadioGroup>
-            </LinearLayout>
+    /**
+     * Save temperature unit to Firestore
+     */
+    private void saveTemperatureUnit(String unit) {
+        settingsRepo.updateTemperatureUnit(unit, new SettingsRepository.OnUpdateListener() {
+            @Override
+            public void onSuccess(String message) {
+                Log.d(TAG, "Temperature unit saved: " + unit);
+                cachePreference("temperatureUnit", unit);
+            }
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="24dp"/>
-        </LinearLayout>
-    </LinearLayout>
-</ScrollView>
+            @Override
+            public void onFailure(String error) {
+                Toast.makeText(SettingsActivity.this,
+                        "Failed to save: " + error,
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void cacheSettingsLocally(UserSettings settings) {
+        SharedPreferences.Editor editor = sharedPrefs.edit();
+        editor.putString("fName", settings.getfName());
+        editor.putString("email", settings.getEmail());
+        editor.putString("temperatureUnit", settings.getTemperatureUnit());
+        editor.apply();
+    }
+
+    private void cachePreference(String key, Object value) {
+        SharedPreferences.Editor editor = sharedPrefs.edit();
+        if (value instanceof String) {
+            editor.putString(key, (String) value);
+        } else if (value instanceof Integer) {
+            editor.putInt(key, (Integer) value);
+        }
+        editor.apply();
+    }
+
+    private void loadCachedSettings() {
+        String name = sharedPrefs.getString("fName", "");
+        String email = sharedPrefs.getString("email", "");
+        String tempUnit = sharedPrefs.getString("temperatureUnit", "celsius");
+
+        UserSettings cachedSettings = new UserSettings();
+        cachedSettings.setfName(name);
+        cachedSettings.setEmail(email);
+        cachedSettings.setTemperatureUnit(tempUnit);
+
+        displaySettings(cachedSettings);
+    }
+
+    private void showLoading(boolean show) {
+        if (btnSaveAccount != null) {
+            btnSaveAccount.setEnabled(!show);
+        }
+    }
+}
