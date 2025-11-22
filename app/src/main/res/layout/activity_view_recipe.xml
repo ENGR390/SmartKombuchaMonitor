@@ -289,105 +289,7 @@
 
             </LinearLayout>
 
-            <!-- Live Temperature and pH Reading -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="LIVE READINGS"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:textColor="#D2691E"
-                android:layout_marginBottom="8dp"
-                android:letterSpacing="0.1" />
-
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp"
-                android:layout_marginBottom="16dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:padding="16dp">
-
-                    <!-- Live Temperature -->
-                    <LinearLayout
-                        android:id="@+id/live_temp_container"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:visibility="gone">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Current Temperature"
-                            android:textSize="12sp"
-                            android:textColor="#A0522D"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tv_live_temperature"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="--°C"
-                            android:textSize="24sp"
-                            android:textColor="#FF8C00"
-                            android:textStyle="bold" />
-                    </LinearLayout>
-
-                    <!-- Live pH -->
-                    <LinearLayout
-                        android:id="@+id/live_ph_container"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:clickable="true"
-                        android:focusable="true"
-                        android:background="?attr/selectableItemBackground"
-                        android:visibility="gone">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Current pH (tap for info)"
-                            android:textSize="12sp"
-                            android:textColor="#A0522D"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tv_live_ph"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="--"
-                            android:textSize="24sp"
-                            android:textColor="#FF6B35"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tv_fermentation_stage"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Unknown"
-                            android:textSize="12sp"
-                            android:textColor="#FFFFFF"
-                            android:background="@drawable/status_badge"
-                            android:paddingStart="8dp"
-                            android:paddingEnd="8dp"
-                            android:paddingTop="4dp"
-                            android:paddingBottom="4dp"
-                            android:layout_marginTop="4dp" />
-                    </LinearLayout>
-
-                </LinearLayout>
-
-            </androidx.cardview.widget.CardView>
-
+            <!-- TEMPERATURE SECTION with Live Reading -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -411,6 +313,37 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
+                    <!-- Live Temperature Reading -->
+                    <LinearLayout
+                        android:id="@+id/live_temp_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:background="#F5F5F5"
+                        android:padding="12dp"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Current Temperature"
+                            android:textSize="12sp"
+                            android:textColor="#A0522D"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_live_temperature"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="--°C"
+                            android:textSize="32sp"
+                            android:textColor="#FF8C00"
+                            android:textStyle="bold"
+                            android:layout_marginTop="4dp" />
+                    </LinearLayout>
+
+                    <!-- Temperature Chart -->
                     <com.github.mikephil.charting.charts.LineChart
                         android:id="@+id/temperature_chart"
                         android:layout_width="match_parent"
@@ -420,6 +353,7 @@
 
             </androidx.cardview.widget.CardView>
 
+            <!-- pH SECTION with Live Reading -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -443,6 +377,69 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
+                    <!-- Live pH Reading (Clickable for Legend) -->
+                    <LinearLayout
+                        android:id="@+id/live_ph_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:padding="12dp"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="Current pH (tap for info)"
+                                    android:textSize="12sp"
+                                    android:textColor="#A0522D"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/tv_live_ph"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="--"
+                                    android:textSize="32sp"
+                                    android:textColor="#FF6B35"
+                                    android:textStyle="bold"
+                                    android:layout_marginTop="4dp" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/tv_fermentation_stage"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Unknown"
+                                android:textSize="14sp"
+                                android:textColor="#FFFFFF"
+                                android:background="@drawable/status_badge"
+                                android:paddingStart="12dp"
+                                android:paddingEnd="12dp"
+                                android:paddingTop="6dp"
+                                android:paddingBottom="6dp"
+                                android:layout_marginStart="16dp" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                    <!-- pH Chart -->
                     <com.github.mikephil.charting.charts.LineChart
                         android:id="@+id/ph_chart"
                         android:layout_width="match_parent"
