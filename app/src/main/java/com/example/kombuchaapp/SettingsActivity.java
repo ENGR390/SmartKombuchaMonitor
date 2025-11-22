@@ -76,7 +76,6 @@ public class SettingsActivity extends AppCompatActivity {
 
         progressBar = new ProgressBar(this);
         progressBar.setVisibility(View.GONE);
-
         etUsername = findViewById(R.id.et_username);
         etEmail = findViewById(R.id.et_email);
         etPassword = findViewById(R.id.et_password);
