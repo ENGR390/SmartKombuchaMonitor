@@ -2,6 +2,7 @@ package com.example.kombuchaapp;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.Html;
 import android.util.Log;
@@ -87,7 +88,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private ListenerRegistration phNotifyListener;
 
     private boolean hasHarvestNotified = false;
-    
+
     // Store current readings for re-rendering when unit changes
     private List<SensorReadings> currentTempReadings = new ArrayList<>();
 
@@ -141,6 +142,13 @@ public class ViewRecipeActivity extends AppCompatActivity {
         if (livePhContainer != null) {
             livePhContainer.setOnClickListener(v -> showPhLegend());
         }
+        // Setup back press handler
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                FizzTransitionUtil.play(ViewRecipeActivity.this, () -> finish());
+            }
+        });
     }
 
     private void initViews() {
@@ -195,21 +203,21 @@ public class ViewRecipeActivity extends AppCompatActivity {
             @Override
             public void onSuccess(UserSettings settings) {
                 String newUnit = settings.getTemperatureUnit();
-                
+
                 // Check if unit changed
                 boolean unitChanged = !newUnit.equals(temperatureUnit);
                 temperatureUnit = newUnit;
-                
+
                 runOnUiThread(() -> {
                     // If unit changed and we have chart data, re-render with new unit
                     if (unitChanged && !currentTempReadings.isEmpty()) {
                         updateTemperatureChart(currentTempReadings);
                     }
-                    
+
                     // Also update live temperature display if visible
-                    if (unitChanged && liveTempContainer != null && 
-                        liveTempContainer.getVisibility() == View.VISIBLE && 
-                        !currentTempReadings.isEmpty()) {
+                    if (unitChanged && liveTempContainer != null &&
+                            liveTempContainer.getVisibility() == View.VISIBLE &&
+                            !currentTempReadings.isEmpty()) {
                         // Get the most recent temperature
                         SensorReadings latestReading = currentTempReadings.get(currentTempReadings.size() - 1);
                         updateLiveTemperature(latestReading.getTemperature_c());
@@ -257,7 +265,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
             if (livePhContainer != null && tvLivePh != null && tvFermentationStage != null) {
                 livePhContainer.setVisibility(View.VISIBLE);
                 tvLivePh.setText(String.format("%.2f", ph));
-                
+
                 PhFermentationStage.Result result = PhFermentationStage.evaluate(ph);
                 tvLivePh.setTextColor(result.color);
                 tvFermentationStage.setText(result.title);
@@ -272,22 +280,27 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private void showPhLegend() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Fermentation Stages");
-        
+
         String message = "<b>🔵 Initial (pH 4.5+)</b><br>" +
                 "Fermentation just started. Sweet tea taste.<br><br>" +
-                
+
                 "<b>🟠 Active (pH 3.5-4.5)</b><br>" +
                 "Fermentation in progress. Becoming tangy.<br><br>" +
-                
+
                 "<b>🟢 Optimal (pH 2.5-3.5)</b><br>" +
                 "Perfect for harvesting! Balanced flavor.<br><br>" +
-                
+
                 "<b>🔴 Taste Test (pH &lt;2.5)</b><br>" +
                 "Very tart and acidic. Taste before bottling.";
-        
-        builder.setMessage(Html.fromHtml(message, Html.FROM_HTML_MODE_LEGACY));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            builder.setMessage(Html.fromHtml(message, Html.FROM_HTML_MODE_LEGACY));
+        } else {
+            builder.setMessage(Html.fromHtml(message));
+        }
+
         builder.setPositiveButton("Got it!", null);
-        
+
         AlertDialog dialog = builder.create();
         dialog.show();
     }
@@ -591,7 +604,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         // Check the central sensor_control document
         db.collection("sensor_control").document("active_config").get()
                 .addOnSuccessListener(documentSnapshot -> {
-                   if (documentSnapshot.exists()) {
+                    if (documentSnapshot.exists()) {
                         // Check if another recipe is already active
                         String activeRecipeId = documentSnapshot.getString("active_recipe_id");
 
@@ -1217,7 +1230,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
                     // Store readings for unit conversion
                     currentTempReadings = new ArrayList<>(readings);
-                    
+
                     updateTemperatureChart(readings);
                 });
     }
@@ -1242,13 +1255,13 @@ public class ViewRecipeActivity extends AppCompatActivity {
         for (int i = 0; i < readings.size(); i++) {
             SensorReadings reading = readings.get(i);
             float tempC = reading.getTemperature_c();
-            
+
             // Convert temperature based on user preference
             float displayTemp = tempC;
             if ("fahrenheit".equalsIgnoreCase(temperatureUnit)) {
                 displayTemp = (tempC * 9/5) + 32;
             }
-            
+
             tempEntries.add(new Entry(i, displayTemp));
 
             // Track min/max for Y-axis
@@ -1552,19 +1565,14 @@ public class ViewRecipeActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        
+
         // Reload user settings FIRST (in case they changed temperature unit in Settings)
         // This will automatically refresh the chart if the unit changed
         loadUserSettings();
-        
+
         // Then reload recipe when returning from edit
         if (recipeId != null) {
             loadRecipe();
         }
-    }
-    
-    @Override
-    public void onBackPressed() {
-        FizzTransitionUtil.play(this, this::finish);
     }
 }
