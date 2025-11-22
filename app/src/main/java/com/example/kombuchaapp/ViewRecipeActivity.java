@@ -81,6 +81,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private ListenerRegistration phNotifyListener;
 
     private boolean hasHarvestNotified = false;
+    
+    // Store current readings for re-rendering when unit changes
+    private List<SensorReadings> currentTempReadings = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -179,11 +182,25 @@ public class ViewRecipeActivity extends AppCompatActivity {
         settingsRepository.getUserSettings(new SettingsRepository.OnSettingsLoadedListener() {
             @Override
             public void onSuccess(UserSettings settings) {
-                temperatureUnit = settings.getTemperatureUnit();
+                String newUnit = settings.getTemperatureUnit();
+                
+                // Check if unit changed
+                boolean unitChanged = !newUnit.equals(temperatureUnit);
+                temperatureUnit = newUnit;
+                
                 runOnUiThread(() -> {
-                    // Update temperature display if already showing
-                    if (liveTempContainer != null && liveTempContainer.getVisibility() == View.VISIBLE) {
-                        // Refresh will happen on next sensor update
+                    // If unit changed and we have chart data, re-render with new unit
+                    if (unitChanged && !currentTempReadings.isEmpty()) {
+                        updateTemperatureChart(currentTempReadings);
+                    }
+                    
+                    // Also update live temperature display if visible
+                    if (unitChanged && liveTempContainer != null && 
+                        liveTempContainer.getVisibility() == View.VISIBLE && 
+                        !currentTempReadings.isEmpty()) {
+                        // Get the most recent temperature
+                        SensorReadings latestReading = currentTempReadings.get(currentTempReadings.size() - 1);
+                        updateLiveTemperature(latestReading.getTemperature_c());
                     }
                 });
             }
@@ -993,6 +1010,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
                     if (snapshots == null || snapshots.isEmpty()) {
                         // No data yet
+                        currentTempReadings.clear(); // Clear stored readings
                         temperatureChart.clear();
                         temperatureChart.setNoDataText("No temperature readings yet");
                         temperatureChart.invalidate();
@@ -1006,6 +1024,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
                         readings.add(reading);
                     }
 
+                    // Store readings for unit conversion
+                    currentTempReadings = new ArrayList<>(readings);
+                    
                     updateTemperatureChart(readings);
                 });
     }
@@ -1029,12 +1050,19 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
         for (int i = 0; i < readings.size(); i++) {
             SensorReadings reading = readings.get(i);
-            float temp = reading.getTemperature_c();
-            tempEntries.add(new Entry(i, temp));
+            float tempC = reading.getTemperature_c();
+            
+            // Convert temperature based on user preference
+            float displayTemp = tempC;
+            if ("fahrenheit".equalsIgnoreCase(temperatureUnit)) {
+                displayTemp = (tempC * 9/5) + 32;
+            }
+            
+            tempEntries.add(new Entry(i, displayTemp));
 
             // Track min/max for Y-axis
-            minTemp = Math.min(minTemp, temp);
-            maxTemp = Math.max(maxTemp, temp);
+            minTemp = Math.min(minTemp, displayTemp);
+            maxTemp = Math.max(maxTemp, displayTemp);
 
             // Format timestamp for X-axis label
             try {
@@ -1085,8 +1113,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
         yAxis.setAxisMinimum(minTemp - padding);
         yAxis.setAxisMaximum(maxTemp + padding);
 
-        // Create dataset
-        LineDataSet dataSet = new LineDataSet(tempEntries, "Temperature (°C)");
+        // Create dataset with appropriate label based on unit
+        String unitLabel = "fahrenheit".equalsIgnoreCase(temperatureUnit) ? "Temperature (°F)" : "Temperature (°C)";
+        LineDataSet dataSet = new LineDataSet(tempEntries, unitLabel);
         dataSet.setColor(Color.BLUE);
         dataSet.setCircleColor(Color.BLUE);
         dataSet.setCircleHoleColor(Color.BLACK);
@@ -1329,11 +1358,17 @@ public class ViewRecipeActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Reload recipe when returning from edit
+        
+        // Reload user settings FIRST (in case they changed temperature unit in Settings)
+        // This will automatically refresh the chart if the unit changed
+        loadUserSettings();
+        
+        // Then reload recipe when returning from edit
         if (recipeId != null) {
             loadRecipe();
         }
     }
+    
     @Override
     public void onBackPressed() {
         FizzTransitionUtil.play(this, this::finish);
