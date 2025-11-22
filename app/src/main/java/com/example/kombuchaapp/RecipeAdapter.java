@@ -1,5 +1,6 @@
 package com.example.kombuchaapp;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
@@ -131,14 +132,14 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
             btnView.setOnClickListener(v -> {
                 Intent intent = new Intent(context, ViewRecipeActivity.class);
                 intent.putExtra("recipe_id", recipe.getRecipeId());
-                context.startActivity(intent);
+                startWithFizz(intent);
             });
 
             // Edit button - navigate to edit activity
             btnEdit.setOnClickListener(v -> {
                 Intent intent = new Intent(context, EditRecipeActivity.class);
                 intent.putExtra("recipe_id", recipe.getRecipeId());
-                context.startActivity(intent);
+                startWithFizz(intent);
             });
 
             // Delete button - show confirmation dialog
@@ -148,8 +149,17 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
             itemView.setOnClickListener(v -> {
                 Intent intent = new Intent(context, ViewRecipeActivity.class);
                 intent.putExtra("recipe_id", recipe.getRecipeId());
-                context.startActivity(intent);
+                startWithFizz(intent);
             });
+        }
+
+        private void startWithFizz(Intent intent) {
+            if (context instanceof Activity) {
+                Activity activity = (Activity) context;
+                FizzTransitionUtil.play(activity, () -> activity.startActivity(intent));
+            } else {
+                context.startActivity(intent);
+            }
         }
 
         private void setStatusColor(String status) {

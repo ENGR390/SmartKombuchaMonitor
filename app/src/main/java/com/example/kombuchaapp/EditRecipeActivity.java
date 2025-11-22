@@ -55,7 +55,7 @@ public class EditRecipeActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
         Objects.requireNonNull(getSupportActionBar()).setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowHomeEnabled(true);
-        toolbar.setNavigationOnClickListener(v -> finish());
+        toolbar.setNavigationOnClickListener(v -> onBackPressed());
 
         // Load recipe data
         loadRecipe();
@@ -150,7 +150,7 @@ public class EditRecipeActivity extends AppCompatActivity {
                             "Recipe updated successfully!",
                             Toast.LENGTH_SHORT).show();
                     Log.d(TAG, "Recipe updated: " + recipeId);
-                    finish(); // Return to previous activity
+                    FizzTransitionUtil.play(EditRecipeActivity.this, () -> finish());
                 });
             }
 
@@ -211,5 +211,9 @@ public class EditRecipeActivity extends AppCompatActivity {
     private void showLoading(boolean show) {
         progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
         btnUpdateRecipe.setEnabled(!show);
+    }
+    @Override
+    public void onBackPressed() {
+        FizzTransitionUtil.play(this, EditRecipeActivity.super::onBackPressed);
     }
 }
