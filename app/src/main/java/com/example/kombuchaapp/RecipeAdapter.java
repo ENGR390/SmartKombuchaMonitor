@@ -113,13 +113,14 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
     }
 
     class RecipeViewHolder extends RecyclerView.ViewHolder {
-        TextView recipeName, recipeStatus, recipeTea, recipeWater, recipeSugar, recipeDate, likeCount;
+        TextView recipeName, recipePublisher, recipeStatus, recipeTea, recipeWater, recipeSugar, recipeDate, likeCount;
         Button btnView, btnEdit, btnDelete, btnPublish;
         ImageButton btnLike;
 
         public RecipeViewHolder(@NonNull View itemView) {
             super(itemView);
             recipeName = itemView.findViewById(R.id.recipe_name);
+            recipePublisher = itemView.findViewById(R.id.recipe_publisher);
             recipeStatus = itemView.findViewById(R.id.recipe_status);
             recipeTea = itemView.findViewById(R.id.recipe_tea);
             recipeWater = itemView.findViewById(R.id.recipe_water);
@@ -140,6 +141,7 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
             if (btnView != null) btnView.setVisibility(View.VISIBLE);
             if (btnPublish != null) btnPublish.setVisibility(View.VISIBLE);
             if (btnLike != null) btnLike.setVisibility(View.GONE);
+            if (recipePublisher != null) recipePublisher.setVisibility(View.GONE);
 
             if (isDiscoverMode) {
                 // Hide owner-only buttons
@@ -149,6 +151,12 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                 if (btnPublish != null) btnPublish.setVisibility(View.GONE);
                 // Show Discover-only button
                 if (btnLike != null) btnLike.setVisibility(View.VISIBLE);
+                
+                // Show and load publisher username
+                if (recipePublisher != null) {
+                    recipePublisher.setVisibility(View.VISIBLE);
+                    loadPublisherUsername(recipe.getUserId(), recipePublisher);
+                }
 
             } else {
                 // Show owner-only buttons
@@ -346,6 +354,27 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                 itemView.setOnClickListener(null);
                 itemView.setClickable(false);
             }
+        }
+
+        private void loadPublisherUsername(String userId, TextView publisherView) {
+            if (userId == null) {
+                publisherView.setText("by Unknown");
+                return;
+            }
+
+            db.collection("users").document(userId).get()
+                    .addOnSuccessListener(documentSnapshot -> {
+                        if (documentSnapshot.exists()) {
+                            String username = documentSnapshot.getString("fName");
+                            publisherView.setText("by " + (username != null ? username : "Unknown"));
+                        } else {
+                            publisherView.setText("by Unknown");
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Failed to load publisher username", e);
+                        publisherView.setText("by Unknown");
+                    });
         }
 
         private void updateLikeButton(ImageButton button, boolean isLiked) {
