@@ -1,5 +1,6 @@
 package com.example.kombuchaapp;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
@@ -9,12 +10,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.kombuchaapp.models.Recipe;
@@ -60,20 +59,10 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
     @NonNull
     @Override
     public RecipeViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view;
-
-        if (isDiscoverMode) {
-            view = LayoutInflater.from(context)
-                    .inflate(R.layout.discover_recipe_card, parent, false);
-        } else {
-            view = LayoutInflater.from(context)
-                    .inflate(R.layout.item_recipe_card, parent, false);
-        }
-
+        View view = LayoutInflater.from(context).inflate(R.layout.item_recipe_card, parent, false);
         Haptics.attachToTree(view);
         return new RecipeViewHolder(view);
     }
-
 
     @Override
     public void onBindViewHolder(@NonNull RecipeViewHolder holder, int position) {
@@ -101,26 +90,13 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
         notifyItemRemoved(position);
     }
 
-    private boolean isDiscoverMode = false;
-
-    public void setDiscoverMode(boolean discover) {
-        this.isDiscoverMode = discover;
-        notifyDataSetChanged();
-    }
-    @Override
-    public int getItemViewType(int position) {
-        return isDiscoverMode ? 1 : 0;
-    }
-
     class RecipeViewHolder extends RecyclerView.ViewHolder {
-        TextView recipeName, recipePublisher, recipeStatus, recipeTea, recipeWater, recipeSugar, recipeDate, likeCount;
-        Button btnView, btnEdit, btnDelete, btnPublish;
-        ImageButton btnLike;
+        TextView recipeName, recipeStatus, recipeTea, recipeWater, recipeSugar, recipeDate;
+        Button btnView, btnEdit, btnDelete;
 
         public RecipeViewHolder(@NonNull View itemView) {
             super(itemView);
             recipeName = itemView.findViewById(R.id.recipe_name);
-            recipePublisher = itemView.findViewById(R.id.recipe_publisher);
             recipeStatus = itemView.findViewById(R.id.recipe_status);
             recipeTea = itemView.findViewById(R.id.recipe_tea);
             recipeWater = itemView.findViewById(R.id.recipe_water);
@@ -129,69 +105,21 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
             btnView = itemView.findViewById(R.id.btn_view);
             btnEdit = itemView.findViewById(R.id.btn_edit);
             btnDelete = itemView.findViewById(R.id.btn_delete);
-            btnPublish = itemView.findViewById(R.id.btn_publish);
-            btnLike = itemView.findViewById(R.id.btn_like);
-            likeCount = itemView.findViewById(R.id.like_count);
         }
 
         public void bind(Recipe recipe) {
-            // Reset all buttons to default
-            if (btnEdit != null) btnEdit.setVisibility(View.VISIBLE);
-            if (btnDelete != null) btnDelete.setVisibility(View.VISIBLE);
-            if (btnView != null) btnView.setVisibility(View.VISIBLE);
-            if (btnPublish != null) btnPublish.setVisibility(View.VISIBLE);
-            if (btnLike != null) btnLike.setVisibility(View.GONE);
-            if (recipePublisher != null) recipePublisher.setVisibility(View.GONE);
-
-            if (isDiscoverMode) {
-                // Hide owner-only buttons
-                if (btnEdit != null) btnEdit.setVisibility(View.GONE);
-                if (btnDelete != null) btnDelete.setVisibility(View.GONE);
-                if (btnView != null) btnView.setVisibility(View.GONE);
-                if (btnPublish != null) btnPublish.setVisibility(View.GONE);
-                // Show Discover-only button
-                if (btnLike != null) btnLike.setVisibility(View.VISIBLE);
-                
-                // Show and load publisher username
-                if (recipePublisher != null) {
-                    recipePublisher.setVisibility(View.VISIBLE);
-                    loadPublisherUsername(recipe.getUserId(), recipePublisher);
-                }
-
-            } else {
-                // Show owner-only buttons
-                if (btnEdit != null) btnEdit.setVisibility(View.VISIBLE);
-                if (btnDelete != null) btnDelete.setVisibility(View.VISIBLE);
-                if (btnView != null) btnView.setVisibility(View.VISIBLE);
-                if (btnPublish != null) btnPublish.setVisibility(View.VISIBLE);
-
-                // Hide Discover button
-                if (btnLike != null) btnLike.setVisibility(View.GONE);
-            }
-
-
             // Set recipe name
             recipeName.setText(recipe.getRecipeName() != null ? recipe.getRecipeName() : "Unnamed Recipe");
 
-            //Set recipe like count
-            if (likeCount != null) {
-                likeCount.setText(String.valueOf(recipe.getLikes()));
-            }
-
             // Set status with color
-            if (recipeStatus != null){
-                String status = recipe.getStatus() != null ? recipe.getStatus() : "draft";
-                recipeStatus.setText(status.toUpperCase());
-                setStatusColor(status);
-            }
+            String status = recipe.getStatus() != null ? recipe.getStatus() : "draft";
+            recipeStatus.setText(status.toUpperCase());
+            setStatusColor(status);
 
             // Set ingredients
-            if (recipeTea != null)
-                recipeTea.setText("Tea: " + (recipe.getTeaLeaf() != null ? recipe.getTeaLeaf() : "N/A"));
-            if (recipeWater != null)
-                recipeWater.setText("Water: " + (recipe.getWater() != null ? recipe.getWater() : "N/A"));
-            if (recipeSugar != null)
-                recipeSugar.setText("Sugar: " + (recipe.getSugar() != null ? recipe.getSugar() : "N/A"));
+            recipeTea.setText("Tea: " + (recipe.getTeaLeaf() != null ? recipe.getTeaLeaf() : "N/A"));
+            recipeWater.setText("Water: " + (recipe.getWater() != null ? recipe.getWater() : "N/A"));
+            recipeSugar.setText("Sugar: " + (recipe.getSugar() != null ? recipe.getSugar() : "N/A"));
 
             // Set created date
             if (recipe.getCreatedDate() != null) {
@@ -200,190 +128,37 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                 recipeDate.setText("Created: Unknown");
             }
 
-            if (!isDiscoverMode) {
-                // View button - navigate to detailed view
-                if (btnView != null) {
-                    btnView.setOnClickListener(v -> {
-                        Intent intent = new Intent(context, ViewRecipeActivity.class);
-                        intent.putExtra("recipe_id", recipe.getRecipeId());
-                        context.startActivity(intent);
-                    });
-                }
+            // View button - navigate to detailed view
+            btnView.setOnClickListener(v -> {
+                Intent intent = new Intent(context, ViewRecipeActivity.class);
+                intent.putExtra("recipe_id", recipe.getRecipeId());
+                startWithFizz(intent);
+            });
 
-                // Edit button - navigate to edit activity
-                if (btnEdit != null) {
-                    btnEdit.setOnClickListener(v -> {
-                        Intent intent = new Intent(context, EditRecipeActivity.class);
-                        intent.putExtra("recipe_id", recipe.getRecipeId());
-                        context.startActivity(intent);
-                    });
-                }
-                // Delete button - show confirmation dialog
-                if (btnDelete != null)
-                    btnDelete.setOnClickListener(v -> showDeleteConfirmation(recipe, getAdapterPosition()));
+            // Edit button - navigate to edit activity
+            btnEdit.setOnClickListener(v -> {
+                Intent intent = new Intent(context, EditRecipeActivity.class);
+                intent.putExtra("recipe_id", recipe.getRecipeId());
+                startWithFizz(intent);
+            });
 
-                // Always read from recipe object directly
-                if (btnPublish != null) {
-                    if (recipe.getPublished() != null && recipe.getPublished()) {
-                        btnPublish.setText("Unpublish");
-                        btnPublish.setBackgroundTintList(
-                                android.content.res.ColorStateList.valueOf(Color.GRAY)
-                        );
-                    } else {
-                        btnPublish.setText("Publish");
-                        btnPublish.setBackgroundTintList(
-                                android.content.res.ColorStateList.valueOf(Color.parseColor("#14828C"))
-                        );
-                    }
-
-
-                    // Handle Publish/Unpublish click
-                    btnPublish.setOnClickListener(v -> {
-                        boolean newState = !(recipe.getPublished() != null && recipe.getPublished());
-
-                        recipeRepository.updateRecipePublished(recipe.getRecipeId(), newState, new RecipeRepository.OnUpdateListener() {
-                            @Override
-                            public void onSuccess(String message) {
-
-                                // Update recipe state
-                                recipe.setPublished(newState);
-
-                                // Update UI right away
-                                if (newState) {
-                                    btnPublish.setText("Published");
-                                    btnPublish.setBackgroundTintList(
-                                            android.content.res.ColorStateList.valueOf(Color.GRAY)
-                                    );
-                                } else {
-                                    btnPublish.setText("Publish");
-                                    btnPublish.setBackgroundTintList(
-                                            android.content.res.ColorStateList.valueOf(Color.parseColor("#14828C"))
-                                    );
-                                }
-
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
-                            }
-
-                            @Override
-                            public void onFailure(String error) {
-                                Toast.makeText(context, "Failed: " + error, Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                    });
-                }
-
-            }
-
-            // Handle Like Button in Discover Mode
-            if (btnLike != null && isDiscoverMode) {
-                String currentUserId = FirebaseAuth.getInstance().getUid();
-
-                // Initialize likedBy list if null
-                if (recipe.getLikedBy() == null) {
-                    recipe.setLikedBy(new ArrayList<>());
-                }
-
-                boolean isLiked = recipe.getLikedBy().contains(currentUserId);
-
-                // Set initial icon and color based on like state
-                updateLikeButton(btnLike, isLiked);
-
-                btnLike.setOnClickListener(v -> {
-                    if (currentUserId == null) {
-                        Toast.makeText(context, "Please log in to like recipes", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-
-                    String ownerUserId = recipe.getUserId();
-                    String recipeId = recipe.getRecipeId();
-
-                    boolean userAlreadyLiked = recipe.getLikedBy().contains(currentUserId);
-
-                    // Optimistic UI update
-                    if (userAlreadyLiked) {
-                        // unlike
-                        recipe.getLikedBy().remove(currentUserId);
-                        recipe.setLikes(recipe.getLikes() - 1);
-                        updateLikeButton(btnLike, false);
-                        likeCount.setText(String.valueOf(recipe.getLikes()));
-                    } else {
-                        // like
-                        recipe.getLikedBy().add(currentUserId);
-                        recipe.setLikes(recipe.getLikes() + 1);
-                        updateLikeButton(btnLike, true);
-                        likeCount.setText(String.valueOf(recipe.getLikes()));
-                    }
-
-                    // Apply toggle in Firestore
-                    recipeRepository.toggleLike(recipeId, ownerUserId, currentUserId, new RecipeRepository.OnUpdateListener() {
-                        @Override
-                        public void onSuccess(String message) {
-                            // UI already updated optimistically
-                        }
-
-                        @Override
-                        public void onFailure(String error) {
-                            // Revert optimistic update on failure
-                            if (!userAlreadyLiked) {
-                                // Was a like, revert to unlike
-                                recipe.getLikedBy().remove(currentUserId);
-                                recipe.setLikes(recipe.getLikes() - 1);
-                                updateLikeButton(btnLike, false);
-                            } else {
-                                // Was an unlike, revert to like
-                                recipe.getLikedBy().add(currentUserId);
-                                recipe.setLikes(recipe.getLikes() + 1);
-                                updateLikeButton(btnLike, true);
-                            }
-                            likeCount.setText(String.valueOf(recipe.getLikes()));
-                            Toast.makeText(context, "Failed: " + error, Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                });
-            }
+            // Delete button - show confirmation dialog
+            btnDelete.setOnClickListener(v -> showDeleteConfirmation(recipe, getAdapterPosition()));
 
             // Card click - navigate to detailed view
-            if (!isDiscoverMode) {
-                itemView.setOnClickListener(v -> {
-                    Intent intent = new Intent(context, ViewRecipeActivity.class);
-                    intent.putExtra("recipe_id", recipe.getRecipeId());
-                    context.startActivity(intent);
-                });
-            } else {
-                // Disable click in Discover mode
-                itemView.setOnClickListener(null);
-                itemView.setClickable(false);
-            }
+            itemView.setOnClickListener(v -> {
+                Intent intent = new Intent(context, ViewRecipeActivity.class);
+                intent.putExtra("recipe_id", recipe.getRecipeId());
+                startWithFizz(intent);
+            });
         }
 
-        private void loadPublisherUsername(String userId, TextView publisherView) {
-            if (userId == null) {
-                publisherView.setText("by Unknown");
-                return;
-            }
-
-            db.collection("users").document(userId).get()
-                    .addOnSuccessListener(documentSnapshot -> {
-                        if (documentSnapshot.exists()) {
-                            String username = documentSnapshot.getString("fName");
-                            publisherView.setText("by " + (username != null ? username : "Unknown"));
-                        } else {
-                            publisherView.setText("by Unknown");
-                        }
-                    })
-                    .addOnFailureListener(e -> {
-                        Log.e(TAG, "Failed to load publisher username", e);
-                        publisherView.setText("by Unknown");
-                    });
-        }
-
-        private void updateLikeButton(ImageButton button, boolean isLiked) {
-            if (isLiked) {
-                button.setImageResource(R.drawable.ic_thumb_up_filled);
-                button.setColorFilter(ContextCompat.getColor(context, android.R.color.holo_blue_dark));
+        private void startWithFizz(Intent intent) {
+            if (context instanceof Activity) {
+                Activity activity = (Activity) context;
+                FizzTransitionUtil.play(activity, () -> activity.startActivity(intent));
             } else {
-                button.setImageResource(R.drawable.ic_thumb_up_outline);
-                button.setColorFilter(ContextCompat.getColor(context, android.R.color.darker_gray));
+                context.startActivity(intent);
             }
         }
 
@@ -432,7 +207,7 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
         private void deleteRecipe(Recipe recipe, int position) {
             // First, remove from sensor control to prevent new sensor writes during deletion
             removeRecipeForSensors(recipe.getRecipeId());
-
+            
             // Small delay to ensure sensor sees the removal before we start deleting
             new android.os.Handler().postDelayed(() -> {
                 // Now delete the recipe (which will delete all subcollections first)

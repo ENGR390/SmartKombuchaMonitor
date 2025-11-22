@@ -18,20 +18,17 @@
         android:padding="16dp">
 
         <!-- Recipe Name Header -->
-
         <TextView
             android:id="@+id/recipe_name"
-            android:layout_width="367dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
             android:text="Recipe Name"
-            android:textColor="#1A1A1A"
             android:textSize="20sp"
-            android:textStyle="bold" />
+            android:textStyle="bold"
+            android:textColor="#1A1A1A"
+            android:layout_marginBottom="8dp" />
 
         <!-- Status Badge -->
-
-
         <TextView
             android:id="@+id/recipe_status"
             android:layout_width="wrap_content"
@@ -47,7 +44,6 @@
             android:layout_marginBottom="12dp" />
 
         <!-- Recipe Details Container -->
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -102,44 +98,14 @@
             android:gravity="end">
 
             <Button
-                android:id="@+id/btn_publish"
-                style="@style/Widget.Material3.Button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="4dp"
-                android:backgroundTint="#14828C"
-                android:insetLeft="0dp"
-                android:insetTop="4dp"
-                android:insetRight="4dp"
-                android:insetBottom="4dp"
-                android:minWidth="4dp"
-                android:minHeight="4dp"
-                android:paddingLeft="16dp"
-                android:paddingTop="8dp"
-                android:paddingRight="16dp"
-                android:paddingBottom="8dp"
-                android:text="Publish"
-                android:textSize="14sp" />
-
-            <Button
                 android:id="@+id/btn_view"
-                style="@style/Widget.Material3.Button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="4dp"
-                android:backgroundTint="#4A148C"
                 android:text="View"
                 android:textSize="14sp"
-                android:insetLeft="4dp"
-                android:insetRight="4dp"
-                android:insetTop="4dp"
-                android:insetBottom="4dp"
-                android:minHeight="4dp"
-                android:minWidth="4dp"
-                android:paddingLeft="16dp"
-                android:paddingRight="16dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp"/>
+                android:backgroundTint="#4A148C"
+                android:layout_marginEnd="8dp"
+                style="@style/Widget.Material3.Button" />
 
             <Button
                 android:id="@+id/btn_edit"
@@ -148,18 +114,8 @@
                 android:text="Edit"
                 android:textSize="14sp"
                 android:backgroundTint="#FF9100"
-                android:layout_marginEnd="4dp"
-                style="@style/Widget.Material3.Button"
-                android:insetLeft="4dp"
-                android:insetRight="4dp"
-                android:insetTop="4dp"
-                android:insetBottom="4dp"
-                android:minHeight="4dp"
-                android:minWidth="4dp"
-                android:paddingLeft="20dp"
-                android:paddingRight="20dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp"/>
+                android:layout_marginEnd="8dp"
+                style="@style/Widget.Material3.Button" />
 
             <Button
                 android:id="@+id/btn_delete"
@@ -168,17 +124,7 @@
                 android:text="Delete"
                 android:textSize="14sp"
                 android:backgroundTint="#D32F2F"
-                style="@style/Widget.Material3.Button"
-                android:insetLeft="4dp"
-                android:insetRight="6dp"
-                android:insetTop="4dp"
-                android:insetBottom="4dp"
-                android:minHeight="4dp"
-                android:minWidth="4dp"
-                android:paddingLeft="16dp"
-                android:paddingRight="12dp"
-                android:paddingTop="8dp"
-                android:paddingBottom="8dp"/>
+                style="@style/Widget.Material3.Button" />
 
         </LinearLayout>
 
