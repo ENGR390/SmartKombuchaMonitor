@@ -477,6 +477,12 @@ public class RecipeRepository {
         List<String> likedByList = (List<String>) doc.get("likedBy");
         recipe.setLikedBy(likedByList != null ? likedByList : new ArrayList<>());
 
+        // Parse review fields
+        Double ratingValue = doc.getDouble("rating");
+        recipe.setRating(ratingValue != null ? ratingValue.floatValue() : null);
+        recipe.setReviewNotes(doc.getString("reviewNotes"));
+        recipe.setReviewDate(doc.getTimestamp("reviewDate"));
+
         return recipe;
     }
 
