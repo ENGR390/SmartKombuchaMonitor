@@ -2,49 +2,35 @@ package com.example.kombuchaapp.models;
 
 import com.google.firebase.Timestamp;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class Recipe {
-
+    
     private String recipeId;
     private String userId;
     private String recipeName;
-
+    
     // First Fermentation Ingredients
     private String teaLeaf;
     private String water;
     private String sugar;
     private String scoby;
     private String kombuchaStarter;
-
+    
     // Second Fermentation
     private String flavor;
-
+    
     // Metadata
     private Timestamp createdDate;
     private Timestamp brewingStartDate;
     private Timestamp completionDate;
     private String status;
     private String notes;
-    private Boolean published;
-
-    private int likes = 0;
-
-    private List<String> likedBy = new ArrayList<>();
-
-    // Review fields
-    private Float rating;
-    private String reviewNotes;
-    private Timestamp reviewDate;
-
-
+    
     public Recipe() {
         this.status = "draft";
         this.createdDate = Timestamp.now();
     }
-
-    public Recipe(String userId, String recipeName, String teaLeaf, String water,
+    
+    public Recipe(String userId, String recipeName, String teaLeaf, String water, 
                   String sugar, String scoby, String kombuchaStarter, String flavor) {
         this.userId = userId;
         this.recipeName = recipeName;
@@ -56,9 +42,8 @@ public class Recipe {
         this.flavor = flavor;
         this.status = "draft";
         this.createdDate = Timestamp.now();
-        this.published = false;
     }
-
+    
     public String getRecipeId() { return recipeId; }
     public String getUserId() { return userId; }
     public String getRecipeName() { return recipeName; }
@@ -73,15 +58,7 @@ public class Recipe {
     public Timestamp getCompletionDate() { return completionDate; }
     public String getStatus() { return status; }
     public String getNotes() { return notes; }
-    public Boolean getPublished() {return published; }
-    public int getLikes() { return likes; }
-    public List<String> getLikedBy() { return likedBy; }
-    public Float getRating() { return rating; }
-    public String getReviewNotes() { return reviewNotes; }
-    public Timestamp getReviewDate() { return reviewDate; }
-
-    public void setLikedBy(List<String> likedBy) {this.likedBy = likedBy; }
-
+    
     public void setRecipeId(String recipeId) { this.recipeId = recipeId; }
     public void setUserId(String userId) { this.userId = userId; }
     public void setRecipeName(String recipeName) { this.recipeName = recipeName; }
@@ -96,15 +73,10 @@ public class Recipe {
     public void setCompletionDate(Timestamp completionDate) { this.completionDate = completionDate; }
     public void setStatus(String status) { this.status = status; }
     public void setNotes(String notes) { this.notes = notes; }
-    public void setPublished(Boolean published ) { this.published = published; }
-    public void setLikes(int likes) { this.likes = likes; }
-    public void setRating(Float rating) { this.rating = rating; }
-    public void setReviewNotes(String reviewNotes) { this.reviewNotes = reviewNotes; }
-    public void setReviewDate(Timestamp reviewDate) { this.reviewDate = reviewDate; }
-
+    
     @Override
     public String toString() {
-        return  "Recipe{" +
+        return "Recipe{" +
                 "recipeId='" + recipeId + '\'' +
                 ", userId='" + userId + '\'' +
                 ", recipeName='" + recipeName + '\'' +
@@ -115,12 +87,7 @@ public class Recipe {
                 ", kombuchaStarter='" + kombuchaStarter + '\'' +
                 ", flavor='" + flavor + '\'' +
                 ", status='" + status + '\'' +
-                ", createdDate=" + createdDate + '\'' +
-                ", published= "+ published + '\'' +
-                ", likes=" + likes + '\'' +
-                ", likedBy=" + likedBy + '\'' +
-                ", rating=" + rating + '\'' +
-                ", reviewNotes='" + reviewNotes + '\'' +
+                ", createdDate=" + createdDate +
                 '}';
     }
 }

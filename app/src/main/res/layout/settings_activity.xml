@@ -17,7 +17,7 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:background="#FF8C00"
+            android:background="@drawable/gradient_orange_header"
             android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
             app:contentInsetStartWithNavigation="0dp">
 
@@ -133,7 +133,31 @@
                     android:backgroundTint="#FF8C00"
                     tools:ignore="HardcodedText" />
 
-                <!-- Password -->
+                <!-- Old Password (NEW) -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Current Password"
+                    android:textSize="14sp"
+                    android:textColor="#8B4513"
+                    android:layout_marginTop="12dp" />
+
+                <EditText
+                    android:id="@+id/et_old_password"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:paddingVertical="12dp"
+                    android:hint="Enter current password"
+                    android:inputType="textPassword"
+                    android:autofillHints="password"
+                    android:importantForAutofill="yes"
+                    android:textColor="#8B4513"
+                    android:textColorHint="#CD853F"
+                    android:backgroundTint="#FF8C00"
+                    tools:ignore="HardcodedText" />
+
+                <!-- New Password -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -161,7 +185,7 @@
                     android:id="@+id/cb_show_password"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Show password"
+                    android:text="Show passwords"
                     android:textColor="#8B4513"
                     android:layout_marginTop="6dp" />
 
@@ -171,7 +195,7 @@
                     android:layout_height="wrap_content"
                     android:text="Save"
                     android:layout_marginTop="16dp"
-                    android:backgroundTint="#FF8C00"
+                    android:backgroundTint="#FF6D00"
                     android:textColor="@android:color/white" />
             </LinearLayout>
 
@@ -242,6 +266,148 @@
                             android:layout_marginStart="24dp"/>
                     </RadioGroup>
                 </LinearLayout>
+            </LinearLayout>
+
+            <!-- SECTION: Font Size -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="FONT"
+                android:textAllCaps="true"
+                android:letterSpacing="0.05"
+                android:textSize="12sp"
+                android:textColor="#D2691E"
+                android:textStyle="bold"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="#FFFFFF"
+                android:elevation="2dp"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/txt_font_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Size"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#8B4513" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#CD853F"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"/>
+
+                <SeekBar
+                    android:id="@+id/seek_font"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="55"
+                    android:progressTint="#FF8C00"
+                    android:thumbTint="#FF8C00" />
+
+                <TextView
+                    android:id="@+id/txt_font_preview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Preview • 100%"
+                    android:textSize="16sp"
+                    android:textColor="#8B4513"
+                    android:layout_marginTop="12dp"/>
+            </LinearLayout>
+
+            <!-- SECTION: Appearance -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="App Appearance"
+                android:textAllCaps="true"
+                android:letterSpacing="0.05"
+                android:textSize="12sp"
+                android:textColor="#D2691E"
+                android:textStyle="bold"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="#FFFFFF"
+                android:elevation="2dp"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/txt_color_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Color"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#8B4513" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#CD853F"
+                    android:layout_marginTop="12dp"
+                    android:layout_marginBottom="12dp"/>
+
+                <RadioGroup
+                    android:id="@+id/group_colors"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/opt_kombucha"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Kombucha (Orange)"
+                        android:textColor="#8B4513"
+                        android:layout_marginTop="8dp"
+                        android:checked="true"/>
+
+                    <RadioButton
+                        android:id="@+id/opt_purple"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Purple"
+                        android:textColor="#8B4513"
+                        android:layout_marginTop="8dp"/>
+
+                    <RadioButton
+                        android:id="@+id/opt_gray"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Gray"
+                        android:textColor="#8B4513"
+                        android:layout_marginTop="8dp"/>
+
+                    <RadioButton
+                        android:id="@+id/opt_blue"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Blue"
+                        android:textColor="#8B4513"
+                        android:layout_marginTop="8dp"/>
+
+                    <RadioButton
+                        android:id="@+id/opt_green"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Green"
+                        android:textColor="#8B4513"
+                        android:layout_marginTop="8dp"/>
+
+                </RadioGroup>
             </LinearLayout>
 
             <View

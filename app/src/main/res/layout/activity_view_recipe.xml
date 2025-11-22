@@ -130,6 +130,7 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
+                    <!-- Tea Leaf -->
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -152,6 +153,7 @@
                         android:background="#FFE4B5"
                         android:layout_marginBottom="12dp" />
 
+                    <!-- Water -->
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -174,6 +176,7 @@
                         android:background="#FFE4B5"
                         android:layout_marginBottom="12dp" />
 
+                    <!-- Sugar -->
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -196,6 +199,7 @@
                         android:background="#FFE4B5"
                         android:layout_marginBottom="12dp" />
 
+                    <!-- SCOBY -->
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -218,6 +222,7 @@
                         android:background="#FFE4B5"
                         android:layout_marginBottom="12dp" />
 
+                    <!-- Kombucha Starter -->
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -289,6 +294,7 @@
 
             </LinearLayout>
 
+            <!-- Temperature Section -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -312,6 +318,38 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
+                    <!-- Live Temperature Reading -->
+                    <LinearLayout
+                        android:id="@+id/live_temp_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:padding="12dp"
+                        android:background="#F5F5F5"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Current: "
+                            android:textSize="16sp"
+                            android:textColor="#8B4513"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tv_live_temperature"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="--°C"
+                            android:textSize="24sp"
+                            android:textColor="#D2691E"
+                            android:textStyle="bold" />
+
+                    </LinearLayout>
+
+                    <!-- Temperature Graph -->
                     <com.github.mikephil.charting.charts.LineChart
                         android:id="@+id/temperature_chart"
                         android:layout_width="match_parent"
@@ -321,6 +359,7 @@
 
             </androidx.cardview.widget.CardView>
 
+            <!-- pH Section -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -344,6 +383,72 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
+                    <!-- Live pH Reading -->
+                    <LinearLayout
+                        android:id="@+id/live_ph_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp"
+                        android:background="#F5F5F5"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?android:attr/selectableItemBackground">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Current pH: "
+                                android:textSize="16sp"
+                                android:textColor="#8B4513"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tv_live_ph"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--"
+                                android:textSize="24sp"
+                                android:textStyle="bold" />
+
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/tv_fermentation_stage"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:text="Fermentation Stage"
+                            android:textSize="14sp"
+                            android:textStyle="italic"
+                            android:textColor="#FFFFFF"
+                            android:layout_marginTop="4dp"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp"
+                            android:paddingTop="4dp"
+                            android:paddingBottom="4dp"
+                            android:background="@drawable/status_badge" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:text="👆 Tap for fermentation stage info"
+                            android:textSize="12sp"
+                            android:textColor="#757575"
+                            android:layout_marginTop="4dp" />
+
+                    </LinearLayout>
+
+                    <!-- pH Graph -->
                     <com.github.mikephil.charting.charts.LineChart
                         android:id="@+id/ph_chart"
                         android:layout_width="match_parent"
@@ -466,89 +571,6 @@
 
             </LinearLayout>
 
-            <!-- Review Section (Only visible for completed brews) -->
-            <LinearLayout
-                android:id="@+id/review_section"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="MY REVIEW"
-                    android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:textColor="#D2691E"
-                    android:layout_marginBottom="8dp"
-                    android:letterSpacing="0.1" />
-
-                <androidx.cardview.widget.CardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:cardCornerRadius="12dp"
-                    app:cardElevation="4dp"
-                    android:layout_marginBottom="16dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <!-- Rating Display -->
-                        <RatingBar
-                            android:id="@+id/rating_display"
-                            style="?android:attr/ratingBarStyleSmall"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:numStars="5"
-                            android:stepSize="0.5"
-                            android:isIndicator="true"
-                            android:progressTint="#FF8C00"
-                            android:scaleX="1.5"
-                            android:scaleY="1.5"
-                            android:transformPivotX="0dp"
-                            android:layout_marginBottom="16dp"
-                            android:visibility="gone" />
-
-                        <!-- Review Notes -->
-                        <TextView
-                            android:id="@+id/tv_review_notes"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:textSize="14sp"
-                            android:textColor="#8B4513"
-                            android:lineSpacingExtra="4dp"
-                            android:visibility="gone" />
-
-                        <!-- No Review Text -->
-                        <TextView
-                            android:id="@+id/tv_no_review"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="No review yet. Tap below to add your thoughts about this brew!"
-                            android:textSize="14sp"
-                            android:textColor="#A0522D"
-                            android:textStyle="italic"
-                            android:visibility="visible" />
-
-                        <!-- Add/Edit Review Button -->
-                        <Button
-                            android:id="@+id/btn_add_review"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Add Review"
-                            android:backgroundTint="#FF8C00"
-                            android:layout_marginTop="12dp" />
-
-                    </LinearLayout>
-
-                </androidx.cardview.widget.CardView>
-
-            </LinearLayout>
-
         </LinearLayout>
 
     </ScrollView>
@@ -566,6 +588,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
+        <!-- Top row - Primary actions -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -580,6 +603,7 @@
                 android:backgroundTint="#FF8C00"
                 android:layout_marginEnd="4dp" />
 
+            <!-- Draft state: Start Brewing -->
             <Button
                 android:id="@+id/btn_start_brewing"
                 android:layout_width="0dp"
@@ -590,6 +614,7 @@
                 android:layout_marginStart="4dp"
                 android:visibility="gone" />
 
+            <!-- Brewing state: Pause -->
             <Button
                 android:id="@+id/btn_pause_brewing"
                 android:layout_width="0dp"
@@ -600,6 +625,7 @@
                 android:layout_marginStart="4dp"
                 android:visibility="gone" />
 
+            <!-- Paused state: Resume -->
             <Button
                 android:id="@+id/btn_resume_brewing"
                 android:layout_width="0dp"
@@ -610,6 +636,7 @@
                 android:layout_marginStart="4dp"
                 android:visibility="gone" />
 
+            <!-- Completed state: Rebrew -->
             <Button
                 android:id="@+id/btn_rebrew"
                 android:layout_width="0dp"
@@ -622,12 +649,14 @@
 
         </LinearLayout>
 
+        <!-- Second row - Secondary actions (only visible when brewing/paused) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:layout_marginTop="8dp">
 
+            <!-- Brewing state: Complete button -->
             <Button
                 android:id="@+id/btn_mark_completed"
                 android:layout_width="0dp"
@@ -638,6 +667,7 @@
                 android:layout_marginEnd="4dp"
                 android:visibility="gone" />
 
+            <!-- Brewing/Paused state: Back to Draft -->
             <Button
                 android:id="@+id/btn_back_to_draft"
                 android:layout_width="0dp"

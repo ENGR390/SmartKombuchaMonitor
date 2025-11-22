@@ -30,7 +30,7 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
 
     private static final String TAG = "MainActivity";
 
-    Button newRecipeButton, logoutButton, myBrewButton, discoverButton;
+    Button newRecipeButton, logoutButton;
     ImageButton settingsButton;
     RecyclerView recipesRecyclerView;
     TextView emptyStateText;
@@ -61,8 +61,6 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
         newRecipeButton = findViewById(R.id.NewRecipeButton);
         settingsButton = findViewById(R.id.SettingsButton);
         logoutButton = findViewById(R.id.LogoutButton);
-        myBrewButton = findViewById(R.id.myBrewButton);
-        discoverButton = findViewById(R.id.discoverButton);
 
         // Initialize new recipe list components
         recipesRecyclerView = findViewById(R.id.recipesRecyclerView);
@@ -73,7 +71,7 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
         setupRecyclerView();
 
         // Load recipes
-        loadMyRecipes();
+        loadRecipes();
 
         //Existing button listeners
         newRecipeButton.setOnClickListener(v -> {
@@ -87,23 +85,6 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
 
         logoutButton.setOnClickListener(v -> {
             logout();
-        });
-
-        myBrewButton.setOnClickListener(v -> {
-            recipeAdapter.setDiscoverMode(false);
-            loadMyRecipes();
-            myBrewButton.setTypeface(null, android.graphics.Typeface.BOLD);
-            discoverButton.setTypeface(null, android.graphics.Typeface.NORMAL);
-            // Show create button in My Brews mode
-            newRecipeButton.setVisibility(View.VISIBLE);
-        });
-        discoverButton.setOnClickListener(v -> {
-            recipeAdapter.setDiscoverMode(true);
-            loadDiscoverRecipes();
-            myBrewButton.setTypeface(null, android.graphics.Typeface.NORMAL);
-            discoverButton.setTypeface(null, android.graphics.Typeface.BOLD);
-            // Hide create button in Discover mode
-            newRecipeButton.setVisibility(View.GONE);
         });
     }
 
@@ -133,13 +114,47 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
     protected void onResume() {
         super.onResume();
         // Reload recipes when returning to this activity
-        loadMyRecipes();
+        loadRecipes();
     }
 
     private void setupRecyclerView() {
         recipeAdapter = new RecipeAdapter(this, this);
         recipesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         recipesRecyclerView.setAdapter(recipeAdapter);
+    }
+
+    private void loadRecipes() {
+        showLoading(true);
+
+        recipeRepository.getAllRecipes(new RecipeRepository.OnRecipesLoadedListener() {
+            @Override
+            public void onSuccess(List<Recipe> recipes) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+
+                    if (recipes.isEmpty()) {
+                        showEmptyState(true);
+                    } else {
+                        showEmptyState(false);
+                        recipeAdapter.setRecipes(recipes);
+                    }
+
+                    Log.d(TAG, "Loaded " + recipes.size() + " recipes");
+                });
+            }
+
+            @Override
+            public void onFailure(String error) {
+                runOnUiThread(() -> {
+                    showLoading(false);
+                    showEmptyState(true);
+                    Toast.makeText(MainActivity.this,
+                            "Error loading recipes: " + error,
+                            Toast.LENGTH_SHORT).show();
+                    Log.e(TAG, "Failed to load recipes: " + error);
+                });
+            }
+        });
     }
 
     private void showLoading(boolean show) {
@@ -160,7 +175,7 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
     @Override
     public void onRecipeDeleted() {
         // Callback from adapter when a recipe is deleted
-        loadMyRecipes(); // Reload the list
+        loadRecipes(); // Reload the list
     }
 
     private void logout() {
@@ -172,53 +187,4 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
             finish();
         });
     }
-
-    private void loadMyRecipes() {
-        showLoading(true);
-        recipeRepository.getAllRecipes(new RecipeRepository.OnRecipesLoadedListener() {
-            @Override
-            public void onSuccess(List<Recipe> recipes) {
-                showLoading(false);
-                recipeAdapter.setRecipes(recipes);
-                toggleEmptyState(recipes.isEmpty());
-            }
-
-            @Override
-            public void onFailure(String error) {
-                showLoading(false);
-                Toast.makeText(MainActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void loadDiscoverRecipes() {
-        showLoading(true);
-        recipeRepository.getAllPublishedRecipes(new RecipeRepository.OnRecipesLoadedListener() {
-            @Override
-            public void onSuccess(List<Recipe> recipes) {
-                showLoading(false);
-                recipeAdapter.setRecipes(recipes);
-                toggleEmptyState(recipes.isEmpty());
-            }
-
-            @Override
-            public void onFailure(String error) {
-                showLoading(false);
-                Toast.makeText(MainActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-    private void toggleEmptyState(boolean isEmpty) {
-        TextView emptyStateText = findViewById(R.id.emptyStateText);
-        RecyclerView recyclerView = findViewById(R.id.recipesRecyclerView);
-
-        if (isEmpty) {
-            emptyStateText.setVisibility(View.VISIBLE);
-            recyclerView.setVisibility(View.GONE);
-        } else {
-            emptyStateText.setVisibility(View.GONE);
-            recyclerView.setVisibility(View.VISIBLE);
-        }
-    }
-
 }
