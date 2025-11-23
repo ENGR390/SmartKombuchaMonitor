@@ -89,7 +89,7 @@ public class RecipeRepository {
                 });
     }
 
-//recipe for current user
+    //recipe for current user
     public void getAllRecipes(OnRecipesLoadedListener listener) {
         CollectionReference recipesRef = getRecipesCollection();
 
@@ -245,12 +245,12 @@ public class RecipeRepository {
         }
 
         String userId = user.getUid();
-        
+
         // Track completion of both subcollection deletions
         final boolean[] tempComplete = {false};
         final boolean[] phComplete = {false};
         final boolean[] hasError = {false};
-        
+
         // Delete temperature readings
         fStore.collection("users")
                 .document(userId)
@@ -266,15 +266,15 @@ public class RecipeRepository {
                     } else {
                         int totalDocs = tempSnapshots.size();
                         final int[] deletedCount = {0};
-                        
+
                         Log.d(TAG, "Deleting " + totalDocs + " temperature readings");
-                        
+
                         for (DocumentSnapshot doc : tempSnapshots.getDocuments()) {
                             doc.getReference().delete()
                                     .addOnSuccessListener(aVoid -> {
                                         deletedCount[0]++;
                                         Log.d(TAG, "Deleted temp reading " + deletedCount[0] + "/" + totalDocs);
-                                        
+
                                         if (deletedCount[0] == totalDocs) {
                                             tempComplete[0] = true;
                                             Log.d(TAG, "All temperature readings deleted");
@@ -285,7 +285,7 @@ public class RecipeRepository {
                                         Log.e(TAG, "Failed to delete temp reading", e);
                                         hasError[0] = true;
                                         deletedCount[0]++;
-                                        
+
                                         if (deletedCount[0] == totalDocs) {
                                             tempComplete[0] = true;
                                             checkSubcollectionDeletionComplete(tempComplete, phComplete, hasError, listener);
@@ -316,15 +316,15 @@ public class RecipeRepository {
                     } else {
                         int totalDocs = phSnapshots.size();
                         final int[] deletedCount = {0};
-                        
+
                         Log.d(TAG, "Deleting " + totalDocs + " pH readings");
-                        
+
                         for (DocumentSnapshot doc : phSnapshots.getDocuments()) {
                             doc.getReference().delete()
                                     .addOnSuccessListener(aVoid -> {
                                         deletedCount[0]++;
                                         Log.d(TAG, "Deleted pH reading " + deletedCount[0] + "/" + totalDocs);
-                                        
+
                                         if (deletedCount[0] == totalDocs) {
                                             phComplete[0] = true;
                                             Log.d(TAG, "All pH readings deleted");
@@ -335,7 +335,7 @@ public class RecipeRepository {
                                         Log.e(TAG, "Failed to delete pH reading", e);
                                         hasError[0] = true;
                                         deletedCount[0]++;
-                                        
+
                                         if (deletedCount[0] == totalDocs) {
                                             phComplete[0] = true;
                                             checkSubcollectionDeletionComplete(tempComplete, phComplete, hasError, listener);
@@ -352,8 +352,8 @@ public class RecipeRepository {
                 });
     }
 
-    private void checkSubcollectionDeletionComplete(boolean[] tempComplete, boolean[] phComplete, 
-                                                     boolean[] hasError, OnUpdateListener listener) {
+    private void checkSubcollectionDeletionComplete(boolean[] tempComplete, boolean[] phComplete,
+                                                    boolean[] hasError, OnUpdateListener listener) {
         // Only proceed when BOTH subcollections are completely deleted
         if (tempComplete[0] && phComplete[0]) {
             if (hasError[0]) {
@@ -458,7 +458,26 @@ public class RecipeRepository {
     private Recipe parseRecipe(DocumentSnapshot doc) {
         Recipe recipe = new Recipe();
         recipe.setRecipeId(doc.getId());
-        recipe.setUserId(doc.getString("userId"));
+
+        // Try to get userId from document field first
+        String userId = doc.getString("userId");
+        Log.d(TAG, "parseRecipe - userId from field: " + userId);
+
+        // If userId is null, extract from document path: users/{userId}/Recipes/{recipeId}
+        if (userId == null || userId.isEmpty()) {
+            String path = doc.getReference().getPath();
+            Log.d(TAG, "parseRecipe - document path: " + path);
+            // Path format: users/{userId}/Recipes/{recipeId}
+            String[] parts = path.split("/");
+            Log.d(TAG, "parseRecipe - path parts length: " + parts.length);
+            if (parts.length >= 2 && "users".equals(parts[0])) {
+                userId = parts[1];
+                Log.d(TAG, "parseRecipe - extracted userId from path: " + userId);
+            }
+        }
+
+        recipe.setUserId(userId);
+        Log.d(TAG, "parseRecipe - final userId set: " + userId);
         recipe.setRecipeName(doc.getString("recipeName"));
         recipe.setTeaLeaf(doc.getString("teaLeaf"));
         recipe.setWater(doc.getString("water"));
