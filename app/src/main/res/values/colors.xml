@@ -5,4 +5,5 @@
     <color name="orange_dark">#D84315</color>
     <color name="orange_light">#FF9100</color>
     <color name="hint_gray">#9E9E9E</color>
+    <color name="delete_red">#D32F2F</color>
 </resources>
