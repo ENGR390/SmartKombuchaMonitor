@@ -17,6 +17,7 @@ import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -65,6 +66,14 @@ public class SettingsActivity extends AppCompatActivity {
         // Initialize UI
         initViews();
         setupListeners();
+
+        // Handle back press with modern API
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                FizzTransitionUtil.play(SettingsActivity.this, SettingsActivity.this::finish);
+            }
+        });
 
         // Load settings
         loadSettings();
@@ -200,13 +209,15 @@ public class SettingsActivity extends AppCompatActivity {
         showLoading(true);
 
         // Update username in Firestore (ONLY if changed)
-        if (!TextUtils.isEmpty(username) && !username.equals(currentSettings.getfName())) {
+        if (!TextUtils.isEmpty(username) && (currentSettings == null || !username.equals(currentSettings.getfName()))) {
             settingsRepo.updateUsername(username, new SettingsRepository.OnUpdateListener() {
                 @Override
                 public void onSuccess(String message) {
                     runOnUiThread(() -> {
                         Toast.makeText(SettingsActivity.this, message, Toast.LENGTH_SHORT).show();
-                        currentSettings.setfName(username);
+                        if (currentSettings != null) {
+                            currentSettings.setfName(username);
+                        }
                     });
                 }
 
@@ -364,9 +375,5 @@ public class SettingsActivity extends AppCompatActivity {
         if (btnSaveAccount != null) {
             btnSaveAccount.setEnabled(!show);
         }
-    }
-    @Override
-    public void onBackPressed() {
-        FizzTransitionUtil.play(this, this::finish);
     }
 }
