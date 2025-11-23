@@ -156,7 +156,10 @@ public class Register extends AppCompatActivity {
                             finish();
 
                         } else {
-                            Toast.makeText(Register.this, "Error: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                            String errorMsg = task.getException() != null
+                                    ? task.getException().getMessage()
+                                    : "Unknown error";
+                            Toast.makeText(Register.this, "Error: " + errorMsg, Toast.LENGTH_SHORT).show();
                             progressBar.setVisibility(View.GONE);
                         }
                     }
