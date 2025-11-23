@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthInvalidUserException;
 
 public class ForgotPassword extends AppCompatActivity {
     private static final String TAG = "ForgotPassword";
@@ -68,18 +69,20 @@ public class ForgotPassword extends AppCompatActivity {
                             @Override
                             public void onFailure(@NonNull Exception e) {
                                 Log.e(TAG, "Failed to send password reset email: " + e.getMessage());
-                                Log.e(TAG, "Error code: " + e.getClass().getSimpleName());
+                                Log.e(TAG, "Error type: " + e.getClass().getSimpleName());
 
-                                String errorMessage = e.getMessage();
+                                String userMessage;
 
-                                if(errorMessage != null && errorMessage.contains("There is no user record corresponding to this email")) {
-                                    Toast.makeText(ForgotPassword.this, "No account found with this email address.", Toast.LENGTH_SHORT).show();
-                                } else if(errorMessage != null && errorMessage.contains("We have blocked all requests from this device")) {
-                                    Toast.makeText(ForgotPassword.this, "Too many reset requests. Please try again later.", Toast.LENGTH_SHORT).show();
+                                // Use exception type checking instead of fragile string matching
+                                if (e instanceof FirebaseAuthInvalidUserException) {
+                                    userMessage = "No account found with this email address.";
+                                } else if (e.getMessage() != null && e.getMessage().toLowerCase().contains("blocked")) {
+                                    userMessage = "Too many reset requests. Please try again later.";
                                 } else {
-                                    Toast.makeText(ForgotPassword.this, "Error: " + errorMessage, Toast.LENGTH_SHORT).show();
+                                    userMessage = "Error: " + (e.getMessage() != null ? e.getMessage() : "Unknown error");
                                 }
 
+                                Toast.makeText(ForgotPassword.this, userMessage, Toast.LENGTH_SHORT).show();
                                 progressBar.setVisibility(View.GONE);
                                 mResetBtn.setEnabled(true);
                             }
