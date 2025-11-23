@@ -25,6 +25,8 @@ import com.example.kombuchaapp.models.UserSettings;
 import com.example.kombuchaapp.repositories.SettingsRepository;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.EmailAuthProvider;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
@@ -33,7 +35,7 @@ public class SettingsActivity extends AppCompatActivity {
     private static final String TAG = "SettingsActivity";
 
     // UI Components
-    private EditText etUsername, etEmail, etPassword;
+    private EditText etUsername, etEmail, etCurrentPassword, etPassword;
     private CheckBox cbShowPassword;
     private Button btnSaveAccount;
     private RadioGroup groupUnits;
@@ -78,6 +80,7 @@ public class SettingsActivity extends AppCompatActivity {
         progressBar.setVisibility(View.GONE);
         etUsername = findViewById(R.id.et_username);
         etEmail = findViewById(R.id.et_email);
+        etCurrentPassword = findViewById(R.id.et_current_password);
         etPassword = findViewById(R.id.et_password);
         cbShowPassword = findViewById(R.id.cb_show_password);
         btnSaveAccount = findViewById(R.id.btn_save_account);
@@ -90,10 +93,14 @@ public class SettingsActivity extends AppCompatActivity {
     private void setupListeners() {
         cbShowPassword.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) {
+                etCurrentPassword.setTransformationMethod(HideReturnsTransformationMethod.getInstance());
                 etPassword.setTransformationMethod(HideReturnsTransformationMethod.getInstance());
             } else {
+                etCurrentPassword.setTransformationMethod(PasswordTransformationMethod.getInstance());
                 etPassword.setTransformationMethod(PasswordTransformationMethod.getInstance());
             }
+            // Keep cursor at end of both fields
+            etCurrentPassword.setSelection(etCurrentPassword.getText().length());
             etPassword.setSelection(etPassword.getText().length());
         });
 
@@ -164,9 +171,10 @@ public class SettingsActivity extends AppCompatActivity {
     private void saveAccountInfo() {
         String username = etUsername.getText().toString().trim();
         String email = etEmail.getText().toString().trim();
-        String password = etPassword.getText().toString().trim();
+        String currentPassword = etCurrentPassword.getText().toString().trim();
+        String newPassword = etPassword.getText().toString().trim();
 
-        if (TextUtils.isEmpty(username) && TextUtils.isEmpty(email) && TextUtils.isEmpty(password)) {
+        if (TextUtils.isEmpty(username) && TextUtils.isEmpty(email) && TextUtils.isEmpty(newPassword)) {
             Toast.makeText(this, "Please enter at least one field to update", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -177,10 +185,16 @@ public class SettingsActivity extends AppCompatActivity {
             return;
         }
 
-        // Validate password length
-        if (!TextUtils.isEmpty(password) && password.length() < 6) {
-            etPassword.setError("Password must be at least 6 characters");
-            return;
+        // Validate password - require current password if changing password
+        if (!TextUtils.isEmpty(newPassword)) {
+            if (TextUtils.isEmpty(currentPassword)) {
+                etCurrentPassword.setError("Current password is required");
+                return;
+            }
+            if (newPassword.length() < 6) {
+                etPassword.setError("New password must be at least 6 characters");
+                return;
+            }
         }
 
         showLoading(true);
@@ -212,13 +226,14 @@ public class SettingsActivity extends AppCompatActivity {
             updateFirebaseAuthEmail(email);
         }
 
-        // Update password in Firebase Auth directly (same pattern as ForgotPassword.java)
-        if (!TextUtils.isEmpty(password)) {
-            updateFirebaseAuthPassword(password);
+        // Update password - requires re-authentication with current password
+        if (!TextUtils.isEmpty(newPassword) && !TextUtils.isEmpty(currentPassword)) {
+            updateFirebaseAuthPassword(currentPassword, newPassword);
         }
 
         showLoading(false);
-        etPassword.setText(""); // Clear password field
+        etCurrentPassword.setText(""); // Clear current password field
+        etPassword.setText(""); // Clear new password field
     }
 
     /**
@@ -254,43 +269,43 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     /**
-     * Update password in Firebase Auth (same pattern as ForgotPassword.java)
-     * Note: If this fails with "requires recent authentication", user needs to logout and login again
+     * Update password in Firebase Auth
+     * Re-authenticates with current password first, then updates to new password
      */
-    private void updateFirebaseAuthPassword(String newPassword) {
+    private void updateFirebaseAuthPassword(String currentPassword, String newPassword) {
         FirebaseUser user = fAuth.getCurrentUser();
 
-        if (user == null) {
+        if (user == null || user.getEmail() == null) {
             Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        user.updatePassword(newPassword)
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        Log.d(TAG, "Password updated in Firebase Auth");
-                        Toast.makeText(SettingsActivity.this,
-                                "Password updated successfully",
-                                Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.e(TAG, "Failed to update password: " + e.getMessage());
+        // Create credential with current email and password
+        AuthCredential credential = EmailAuthProvider.getCredential(user.getEmail(), currentPassword);
 
-                        // Handle re-authentication error
-                        if (e.getMessage() != null && e.getMessage().contains("requires recent authentication")) {
-                            Toast.makeText(SettingsActivity.this,
-                                    "Please logout and login again to change your password",
-                                    Toast.LENGTH_LONG).show();
-                        } else {
-                            Toast.makeText(SettingsActivity.this,
-                                    "Password update failed: " + e.getMessage(),
-                                    Toast.LENGTH_LONG).show();
-                        }
-                    }
+        // Re-authenticate the user first
+        user.reauthenticate(credential)
+                .addOnSuccessListener(aVoid -> {
+                    // Re-authentication successful, now update password
+                    user.updatePassword(newPassword)
+                            .addOnSuccessListener(aVoid2 -> {
+                                Log.d(TAG, "Password updated in Firebase Auth");
+                                Toast.makeText(SettingsActivity.this,
+                                        "Password updated successfully",
+                                        Toast.LENGTH_SHORT).show();
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.e(TAG, "Failed to update password: " + e.getMessage());
+                                Toast.makeText(SettingsActivity.this,
+                                        "Password update failed: " + e.getMessage(),
+                                        Toast.LENGTH_LONG).show();
+                            });
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Re-authentication failed: " + e.getMessage());
+                    Toast.makeText(SettingsActivity.this,
+                            "Current password is incorrect",
+                            Toast.LENGTH_LONG).show();
                 });
     }
 
