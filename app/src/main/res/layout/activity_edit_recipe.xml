@@ -208,6 +208,105 @@
                 android:background="@android:drawable/edit_text" />
 
             <TextView
+                android:id="@+id/harvestTextView"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="25dp"
+                android:layout_marginTop="15dp"
+                android:text="Harvest pH range"
+                android:textColor="#8B4513"
+                android:textStyle="bold" />
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="4dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginStart="20dp"
+                android:layout_marginEnd="20dp"
+                android:layout_marginBottom="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <RadioGroup
+                        android:id="@+id/phRadioGroup"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content">
+
+                        <RadioButton
+                            android:id="@+id/sweetRadioButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Sweet (pH 4.0–4.5)"
+                            android:textColor="#8B4513" />
+
+                        <RadioButton
+                            android:id="@+id/tangyRadioButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Tangy (pH 3.5-4.5)"
+                            android:textColor="#8B4513" />
+
+                        <RadioButton
+                            android:id="@+id/vinegaryRadioButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Vinegary (pH &lt; 3.5)"
+                            android:textColor="#8B4513" />
+
+                        <RadioButton
+                            android:id="@+id/customPhRadioButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Custom pH harvest range"
+                            android:textColor="#8B4513" />
+                    </RadioGroup>
+
+                    <LinearLayout
+                        android:id="@+id/customPhLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal"
+                        android:visibility="gone">
+
+                        <EditText
+                            android:id="@+id/minPhEditText"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="8dp"
+                            android:hint="Min pH"
+                            android:textColorHint="#CD853F"
+                            android:textColor="#8B4513"
+                            android:inputType="numberDecimal"
+                            android:minHeight="48dp"
+                            android:padding="12dp"
+                            android:background="@android:drawable/edit_text" />
+
+                        <EditText
+                            android:id="@+id/maxPhEditText"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="8dp"
+                            android:hint="Max pH"
+                            android:textColorHint="#CD853F"
+                            android:textColor="#8B4513"
+                            android:inputType="numberDecimal"
+                            android:minHeight="48dp"
+                            android:padding="12dp"
+                            android:background="@android:drawable/edit_text" />
+                    </LinearLayout>
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <TextView
                 android:id="@+id/textView11"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

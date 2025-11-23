@@ -72,6 +72,8 @@ public class RecipeRepository {
         recipeData.put("status", recipe.getStatus());
         recipeData.put("createdDate", recipe.getCreatedDate());
         recipeData.put("notes", recipe.getNotes());
+        recipeData.put("minPh", recipe.getMinPh());
+        recipeData.put("maxPh", recipe.getMaxPh());
         recipeData.put("published",recipe.getPublished());
         recipeData.put("likes", recipe.getLikes());
 
@@ -161,6 +163,8 @@ public class RecipeRepository {
         updates.put("flavor", recipe.getFlavor());
         updates.put("status", recipe.getStatus());
         updates.put("notes", recipe.getNotes());
+        updates.put("minPh", recipe.getMinPh());
+        updates.put("maxPh", recipe.getMaxPh());
 
         recipesRef.document(recipeId)
                 .update(updates)
@@ -455,6 +459,8 @@ public class RecipeRepository {
     }
 
     // Parse Firestore document into Recipe object
+// Replace the parseRecipe method in RecipeRepository.java with this:
+
     private Recipe parseRecipe(DocumentSnapshot doc) {
         Recipe recipe = new Recipe();
         recipe.setRecipeId(doc.getId());
@@ -490,6 +496,34 @@ public class RecipeRepository {
         recipe.setCreatedDate(doc.getTimestamp("createdDate"));
         recipe.setBrewingStartDate(doc.getTimestamp("brewingStartDate"));
         recipe.setCompletionDate(doc.getTimestamp("completionDate"));
+
+        try {
+            Object minPhObj = doc.get("minPh");
+            if (minPhObj != null) {
+                if (minPhObj instanceof Double) {
+                    recipe.setMinPh((Double) minPhObj);
+                } else if (minPhObj instanceof Long) {
+                    recipe.setMinPh(((Long) minPhObj).doubleValue());
+                }
+            } else {
+                recipe.setMinPh(0.0); // Default value
+            }
+
+            Object maxPhObj = doc.get("maxPh");
+            if (maxPhObj != null) {
+                if (maxPhObj instanceof Double) {
+                    recipe.setMaxPh((Double) maxPhObj);
+                } else if (maxPhObj instanceof Long) {
+                    recipe.setMaxPh(((Long) maxPhObj).doubleValue());
+                }
+            } else {
+                recipe.setMaxPh(0.0); // Default value
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error parsing pH values: " + e.getMessage());
+            recipe.setMinPh(0.0);
+            recipe.setMaxPh(0.0);
+        }
         recipe.setPublished(doc.getBoolean("published"));
         Long likesValue = doc.getLong("likes");
         recipe.setLikes(likesValue != null ? likesValue.intValue() : 0);

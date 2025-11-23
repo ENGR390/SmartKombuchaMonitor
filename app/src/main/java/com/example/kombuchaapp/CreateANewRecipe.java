@@ -6,7 +6,10 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -26,9 +29,13 @@ public class CreateANewRecipe extends AppCompatActivity {
     private static final String TAG = "CreateANewRecipe";
 
     // UI Components
-    private EditText etTeaLeaf, etWater, etSugar, etScoby, etKombuchaStarter, etFlavor, etRecipeName;
+    private EditText etTeaLeaf, etWater, etSugar, etScoby, etKombuchaStarter, etFlavor, etRecipeName, minPhEditText, maxPhEditText;
     private Button btnSaveRecipe;
     private ProgressBar progressBar;
+    private RadioGroup phRadioGroup;
+    private RadioButton sweetRadioButton, tangyRadioButton, vinegaryRadioButton, customPhRadioButton;
+    private LinearLayout customPhLayout;
+    private double minPh, maxPh;
 
     // Repository
     private RecipeRepository recipeRepository;
@@ -60,6 +67,30 @@ public class CreateANewRecipe extends AppCompatActivity {
 
         // Set up save button
         btnSaveRecipe.setOnClickListener(v -> saveRecipe());
+
+        // Set up radio group
+        phRadioGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            setPhRadioGroup(checkedId);
+        });
+    }
+
+    private void setPhRadioGroup(int checkedId) {
+        if (checkedId == R.id.sweetRadioButton) {
+            minPh = 4.0;
+            maxPh = 4.5;
+            customPhLayout.setVisibility(View.GONE);
+        } else if (checkedId == R.id.tangyRadioButton) {
+            minPh = 3.5;
+            maxPh = 4.5;
+            customPhLayout.setVisibility(View.GONE);
+        } else if (checkedId == R.id.vinegaryRadioButton) {
+            minPh = 0;
+            maxPh = 3.5;
+            customPhLayout.setVisibility(View.GONE);
+        } else if (checkedId == R.id.customPhRadioButton) {
+            // Show the custom input fields
+            customPhLayout.setVisibility(View.VISIBLE);
+        }
     }
 
     private void initViews() {
@@ -72,6 +103,15 @@ public class CreateANewRecipe extends AppCompatActivity {
         btnSaveRecipe = findViewById(R.id.btnSaveRecipe);
         progressBar = findViewById(R.id.progressBar);
         etRecipeName = findViewById(R.id.RecipeNameEditText);
+
+        phRadioGroup = findViewById(R.id.phRadioGroup);
+        customPhLayout = findViewById(R.id.customPhLayout);
+        minPhEditText = findViewById(R.id.minPhEditText);
+        maxPhEditText = findViewById(R.id.maxPhEditText);
+        sweetRadioButton = findViewById(R.id.sweetRadioButton);
+        tangyRadioButton = findViewById(R.id.tangyRadioButton);
+        vinegaryRadioButton = findViewById(R.id.vinegaryRadioButton);
+        customPhRadioButton = findViewById(R.id.customPhRadioButton);
     }
 
     private void saveRecipe() {
@@ -83,6 +123,18 @@ public class CreateANewRecipe extends AppCompatActivity {
         String kombuchaStarter = etKombuchaStarter.getText().toString().trim();
         String flavor = etFlavor.getText().toString().trim();
         String recipeName = etRecipeName.getText().toString().trim();
+        String minPhString = minPhEditText.getText().toString().trim();
+        String maxPhString = maxPhEditText.getText().toString().trim();
+
+        if (customPhRadioButton.isChecked()) {
+            try {
+                minPh = Double.parseDouble(minPhString);
+                maxPh = Double.parseDouble(maxPhString);
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "Invalid pH values", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
 
         // Validate inputs
         if (!validateInputs(teaLeaf, water, sugar, scoby, kombuchaStarter)) {
@@ -101,7 +153,9 @@ public class CreateANewRecipe extends AppCompatActivity {
                 sugar,
                 scoby,
                 kombuchaStarter,
-                flavor
+                flavor,
+                minPh,
+                maxPh
         );
 
         // Save to Firestore
@@ -165,6 +219,24 @@ public class CreateANewRecipe extends AppCompatActivity {
             etKombuchaStarter.setError("Kombucha starter is required");
             etKombuchaStarter.requestFocus();
             return false;
+        }
+
+        if (customPhRadioButton.isChecked()) {
+            if (minPh > maxPh) {
+                minPhEditText.setError("Min pH cannot be greater than Max pH");
+                minPhEditText.requestFocus();
+                return false;
+            }
+            if (minPh > 14 || maxPh > 14) {
+                Toast.makeText(this, "pH cannot be greater than 14", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        } else {
+            if (!sweetRadioButton.isChecked() && !tangyRadioButton.isChecked() &&
+                    !vinegaryRadioButton.isChecked()) {
+                Toast.makeText(this, "Please select a harvest pH range", Toast.LENGTH_SHORT).show();
+                return false;
+            }
         }
 
         // Flavor is optional for first fermentation

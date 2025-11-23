@@ -64,7 +64,8 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private TextView tvRecipeName, tvStatus, tvTeaLeaf, tvWater, tvSugar, tvScoby,
             tvKombuchaStarter, tvFlavor, tvCreatedDate, tvBrewingStartDate,
             tvCompletionDate, tvNotes, tvTempAlert;
-    private TextView tvLiveTemperature, tvLivePh, tvFermentationStage;
+    private TextView tvLiveTemperature, tvLivePh, tvFermentationStage,
+            minPhTextView, maxPhTextView, pHTypeTextView;
     private View liveTempContainer, livePhContainer;
     private Button btnEdit, btnStartBrewing, btnMarkCompleted, btnPauseBrewing,
             btnResumeBrewing, btnBackToDraft, btnRebrew, btnAddReview;
@@ -204,6 +205,35 @@ public class ViewRecipeActivity extends AppCompatActivity {
         tvFermentationStage = findViewById(R.id.tv_fermentation_stage);
         liveTempContainer = findViewById(R.id.live_temp_container);
         livePhContainer = findViewById(R.id.live_ph_container);
+
+        minPhTextView = findViewById(R.id.minPhTextView);
+        maxPhTextView = findViewById(R.id.maxPhTextView);
+        pHTypeTextView = findViewById(R.id.phTypeTextView);
+    }
+
+    private void displayPhRange(Recipe recipe) {
+        double minPh = recipe.getMinPh();
+        double maxPh = recipe.getMaxPh();
+
+        // Display pH values
+        minPhTextView.setText(String.format("%.1f", minPh));
+        maxPhTextView.setText(String.format("%.1f", maxPh));
+
+        // Determine and display pH type
+        String phType = getPhType(minPh, maxPh);
+        pHTypeTextView.setText("(" + phType + ")");
+    }
+
+    private String getPhType(double minPh, double maxPh) {
+        if (Math.abs(minPh - 4.0) < 0.01 && Math.abs(maxPh - 4.5) < 0.01) {
+            return "Sweet";
+        } else if (Math.abs(minPh - 3.5) < 0.01 && Math.abs(maxPh - 4.5) < 0.01) {
+            return "Tangy";
+        } else if (Math.abs(minPh - 0) < 0.01 && Math.abs(maxPh - 3.5) < 0.01) {
+            return "Vinegary";
+        } else {
+            return "Custom";
+        }
     }
 
     /**
@@ -323,6 +353,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     showLoading(false);
                     currentRecipe = recipe;
                     displayRecipe(recipe);
+                    displayPhRange(recipe);
                     displayReview(recipe);
 
                     // Start live reading listeners if brewing
@@ -1168,23 +1199,37 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     // Update live pH display
                     updateLivePh(ph);
 
+                    // Check if pH is within the harvest range AND we haven't notified yet
                     if (currentRecipe != null
                             && "brewing".equalsIgnoreCase(currentRecipe.getStatus())
                             && !hasHarvestNotified
-                            && !Float.isNaN(ph)
-                            && Math.abs(ph - 3.0f) <= 0.05f) {
+                            && !Float.isNaN(ph)) {
 
-                        hasHarvestNotified = true;
+                        double minPh = currentRecipe.getMinPh();
+                        double maxPh = currentRecipe.getMaxPh();
 
-                        PhAlert.Result r = PhAlert.evaluate(ph);
+                        // Check if pH is within the user's desired harvest range
+                        if (ph >= minPh && ph <= maxPh) {
+                            hasHarvestNotified = true;
 
-                        NotificationHelper.notifyReadyToHarvest(
-                                getApplicationContext(),
-                                recipeId,
-                                r.title,
-                                r.message,
-                                ph
-                        );
+                            // Create custom message based on pH type
+                            String phType = getPhType(minPh, maxPh);
+                            String title = "Ready to Harvest!";
+                            String message = String.format(
+                                    "Your kombucha has reached the %s range (%.1f-%.1f pH). Time to taste and bottle!",
+                                    phType, minPh, maxPh
+                            );
+
+                            Log.d(TAG, "pH notification triggered: " + message);
+
+                            NotificationHelper.notifyReadyToHarvest(
+                                    getApplicationContext(),
+                                    recipeId,
+                                    title,
+                                    message,
+                                    ph
+                            );
+                        }
                     }
                 });
     }
