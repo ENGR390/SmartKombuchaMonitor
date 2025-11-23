@@ -24,6 +24,8 @@ public class Recipe {
     private Timestamp completionDate;
     private String status;
     private String notes;
+    private double minPh;
+    private double maxPh;
     
     public Recipe() {
         this.status = "draft";
@@ -43,7 +45,23 @@ public class Recipe {
         this.status = "draft";
         this.createdDate = Timestamp.now();
     }
-    
+
+    public Recipe(String userId, String recipeName, String teaLeaf, String water,
+                  String sugar, String scoby, String kombuchaStarter, String flavor, double minPh, double maxPh) {
+        this.userId = userId;
+        this.recipeName = recipeName;
+        this.teaLeaf = teaLeaf;
+        this.water = water;
+        this.sugar = sugar;
+        this.scoby = scoby;
+        this.kombuchaStarter = kombuchaStarter;
+        this.flavor = flavor;
+        this.minPh = minPh;
+        this.maxPh = maxPh;
+        this.status = "draft";
+        this.createdDate = Timestamp.now();
+    }
+
     public String getRecipeId() { return recipeId; }
     public String getUserId() { return userId; }
     public String getRecipeName() { return recipeName; }
@@ -73,7 +91,19 @@ public class Recipe {
     public void setCompletionDate(Timestamp completionDate) { this.completionDate = completionDate; }
     public void setStatus(String status) { this.status = status; }
     public void setNotes(String notes) { this.notes = notes; }
-    
+    public double getMinPh() {
+        return minPh;
+    }
+    public void setMinPh(double minPh) {
+        this.minPh = minPh;
+    }
+    public double getMaxPh() {
+        return maxPh;
+    }
+    public void setMaxPh(double maxPh) {
+        this.maxPh = maxPh;
+    }
+
     @Override
     public String toString() {
         return "Recipe{" +
