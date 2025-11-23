@@ -1097,10 +1097,12 @@ public class ViewRecipeActivity extends AppCompatActivity {
         stopReadingListener();
         stopPhListener();
         stopChartListener();
+        AlertAdapter.cleanup();
     }
 
     private void startReadingListener() {
         FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) return;
         stopReadingListener();
         readingsListener = db.collection("users")
                 .document(user.getUid())
