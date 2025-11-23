@@ -256,7 +256,7 @@
                             android:id="@+id/vinegaryRadioButton"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Vinegary (pH > 3.5)"
+                            android:text="Vinegary (pH &lt; 3.5)"
                             android:textColor="#8B4513" />
 
                         <RadioButton
