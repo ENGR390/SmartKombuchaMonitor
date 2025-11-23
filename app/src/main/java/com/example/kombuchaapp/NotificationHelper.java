@@ -30,6 +30,10 @@ public final class NotificationHelper {
     public static void ensureChannels(Context context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager nm = context.getSystemService(NotificationManager.class);
+            if (nm == null) {
+                return; // Cannot create channels without NotificationManager
+            }
+
             NotificationChannel chTemp = new NotificationChannel(
                     CHANNEL_ID_CRITICAL,
                     CHANNEL_NAME_CRITICAL,
