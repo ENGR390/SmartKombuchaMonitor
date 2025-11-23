@@ -1,7 +1,6 @@
 package com.example.kombuchaapp;
 
 import android.content.Intent;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
@@ -283,6 +282,8 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
         dialog.show();
     }
 
+    private AlertDialog deletionProgressDialog;
+
     private void deleteAccount(String password) {
         FirebaseUser user = fAuth.getCurrentUser();
         if (user == null || user.getEmail() == null) {
@@ -290,8 +291,13 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
             return;
         }
 
-        // Show progress
-        progressBar.setVisibility(View.VISIBLE);
+        // Show non-cancellable progress dialog to block user interaction
+        deletionProgressDialog = new AlertDialog.Builder(this)
+                .setTitle("Deleting Account")
+                .setMessage("Please wait while your account and data are being deleted...")
+                .setCancelable(false)
+                .create();
+        deletionProgressDialog.show();
 
         // Re-authenticate user
         AuthCredential credential = EmailAuthProvider.getCredential(user.getEmail(), password);
@@ -301,9 +307,15 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
                     deleteUserData(user);
                 })
                 .addOnFailureListener(e -> {
-                    progressBar.setVisibility(View.GONE);
+                    dismissDeletionProgress();
                     Toast.makeText(this, "Authentication failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
+    }
+
+    private void dismissDeletionProgress() {
+        if (deletionProgressDialog != null && deletionProgressDialog.isShowing()) {
+            deletionProgressDialog.dismiss();
+        }
     }
 
     private void deleteUserData(FirebaseUser user) {
@@ -323,7 +335,7 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
                     }
                 })
                 .addOnFailureListener(e -> {
-                    progressBar.setVisibility(View.GONE);
+                    dismissDeletionProgress();
                     Toast.makeText(this, "Error deleting data: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
     }
@@ -331,7 +343,6 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
     private void deleteRecipesWithSubcollections(DocumentReference userDocRef,
                                                  com.google.firebase.firestore.QuerySnapshot recipesSnapshot,
                                                  FirebaseUser user) {
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
         final int[] pendingDeletes = {recipesSnapshot.size()};
 
         for (QueryDocumentSnapshot recipeDoc : recipesSnapshot) {
@@ -356,7 +367,10 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
 
     private void deleteSubcollection(com.google.firebase.firestore.CollectionReference collectionRef,
                                      Runnable onComplete) {
-        collectionRef.get().addOnSuccessListener(snapshot -> {
+        // Firestore WriteBatch has a limit of 500 operations, so we need to batch in chunks
+        final int BATCH_SIZE = 450; // Use 450 to leave some margin
+
+        collectionRef.limit(BATCH_SIZE).get().addOnSuccessListener(snapshot -> {
             if (snapshot.isEmpty()) {
                 onComplete.run();
                 return;
@@ -367,7 +381,15 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
             for (QueryDocumentSnapshot doc : snapshot) {
                 batch.delete(doc.getReference());
             }
-            batch.commit().addOnCompleteListener(task -> onComplete.run());
+            batch.commit().addOnCompleteListener(task -> {
+                // If we deleted a full batch, there might be more documents
+                if (snapshot.size() >= BATCH_SIZE) {
+                    // Recursively delete next batch
+                    deleteSubcollection(collectionRef, onComplete);
+                } else {
+                    onComplete.run();
+                }
+            });
         }).addOnFailureListener(e -> {
             // Continue even if subcollection doesn't exist
             onComplete.run();
@@ -381,7 +403,7 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
                     // Finally, delete the Firebase Auth account
                     user.delete()
                             .addOnSuccessListener(aVoid2 -> {
-                                progressBar.setVisibility(View.GONE);
+                                dismissDeletionProgress();
                                 Toast.makeText(this, "Account deleted successfully", Toast.LENGTH_SHORT).show();
                                 // Navigate to login screen
                                 Intent intent = new Intent(MainActivity.this, Login.class);
@@ -390,12 +412,12 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
                                 finish();
                             })
                             .addOnFailureListener(e -> {
-                                progressBar.setVisibility(View.GONE);
+                                dismissDeletionProgress();
                                 Toast.makeText(this, "Error deleting auth account: " + e.getMessage(), Toast.LENGTH_LONG).show();
                             });
                 })
                 .addOnFailureListener(e -> {
-                    progressBar.setVisibility(View.GONE);
+                    dismissDeletionProgress();
                     Toast.makeText(this, "Error deleting user data: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
     }
