@@ -9,6 +9,8 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.PopupMenu;
 import android.widget.ProgressBar;
 import android.widget.RatingBar;
 import android.widget.TextView;
@@ -66,6 +68,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private View liveTempContainer, livePhContainer;
     private Button btnEdit, btnStartBrewing, btnMarkCompleted, btnPauseBrewing,
             btnResumeBrewing, btnBackToDraft, btnRebrew, btnAddReview;
+    private ImageButton btnSettings;
     private ProgressBar progressBar;
     private View notesSection, flavorSection, reviewSection;
     private LineChart temperatureChart, phChart;
@@ -91,6 +94,10 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
     // Store current readings for re-rendering when unit changes
     private List<SensorReadings> currentTempReadings = new ArrayList<>();
+
+    // Store latest live readings for unit conversion updates
+    private float latestLiveTempC = Float.NaN;
+    private float latestLivePh = Float.NaN;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -120,6 +127,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
         // Initialize views
         initViews();
+
+        // Setup settings menu button
+        btnSettings.setOnClickListener(this::showSettingsMenu);
 
         // Load recipe data
         loadRecipe();
@@ -175,6 +185,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
         btnBackToDraft = findViewById(R.id.btn_back_to_draft);
         btnRebrew = findViewById(R.id.btn_rebrew);
         btnAddReview = findViewById(R.id.btn_add_review);
+        btnSettings = findViewById(R.id.btn_settings);
 
         notesSection = findViewById(R.id.notes_section);
         flavorSection = findViewById(R.id.flavor_section);
@@ -214,13 +225,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
                         updateTemperatureChart(currentTempReadings);
                     }
 
-                    // Also update live temperature display if visible
-                    if (unitChanged && liveTempContainer != null &&
-                            liveTempContainer.getVisibility() == View.VISIBLE &&
-                            !currentTempReadings.isEmpty()) {
-                        // Get the most recent temperature
-                        SensorReadings latestReading = currentTempReadings.get(currentTempReadings.size() - 1);
-                        updateLiveTemperature(latestReading.getTemperature_c());
+                    // Also update live temperature display if we have a latest reading
+                    if (unitChanged && !Float.isNaN(latestLiveTempC)) {
+                        updateLiveTemperature(latestLiveTempC);
                     }
                 });
             }
@@ -249,6 +256,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
      * Update live temperature display
      */
     private void updateLiveTemperature(float tempC) {
+        latestLiveTempC = tempC; // Store for unit conversion updates
         runOnUiThread(() -> {
             if (liveTempContainer != null && tvLiveTemperature != null) {
                 liveTempContainer.setVisibility(View.VISIBLE);
@@ -316,6 +324,12 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     currentRecipe = recipe;
                     displayRecipe(recipe);
                     displayReview(recipe);
+
+                    // Start live reading listeners if brewing
+                    if ("brewing".equalsIgnoreCase(recipe.getStatus())) {
+                        startReadingListener();
+                        startPhListener();
+                    }
                 });
             }
 
@@ -465,6 +479,42 @@ public class ViewRecipeActivity extends AppCompatActivity {
         btnBackToDraft.setOnClickListener(v -> confirmBackToDraft());
         btnRebrew.setOnClickListener(v -> confirmRebrew());
         btnAddReview.setOnClickListener(v -> showReviewDialog());
+    }
+
+    private void showSettingsMenu(View view) {
+        PopupMenu popup = new PopupMenu(this, view);
+        popup.getMenuInflater().inflate(R.menu.settings_menu, popup.getMenu());
+
+        popup.setOnMenuItemClickListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == R.id.menu_settings) {
+                // Navigate to settings
+                Intent intent = new Intent(ViewRecipeActivity.this, SettingsActivity.class);
+                FizzTransitionUtil.play(ViewRecipeActivity.this, () -> startActivity(intent));
+                return true;
+            } else if (itemId == R.id.menu_insights) {
+                // Navigate to insights
+                Intent intent = new Intent(ViewRecipeActivity.this, DataInsightsActivity.class);
+                FizzTransitionUtil.play(ViewRecipeActivity.this, () -> startActivity(intent));
+                return true;
+            } else if (itemId == R.id.menu_logout) {
+                // Logout
+                logout();
+                return true;
+            }
+            return false;
+        });
+
+        popup.show();
+    }
+
+    private void logout() {
+        FirebaseAuth.getInstance().signOut();
+        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
+        Intent intent = new Intent(ViewRecipeActivity.this, Login.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
     }
 
     private void showReviewDialog() {
@@ -897,6 +947,10 @@ public class ViewRecipeActivity extends AppCompatActivity {
                             .addOnSuccessListener(aVoid -> {
                                 runOnUiThread(() -> {
                                     addRecipeForSensors();
+                                    // Start listeners for live readings
+                                    startReadingListener();
+                                    startPhListener();
+                                    hasHarvestNotified = false;
                                     showLoading(false);
                                     Toast.makeText(ViewRecipeActivity.this,
                                             "Brewing restarted!",

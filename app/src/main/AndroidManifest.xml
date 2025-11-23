@@ -20,18 +20,22 @@
             android:exported="false" />
         <activity
             android:name=".EditRecipeActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".DataInsightsActivity"
             android:exported="false" />
 
-        <activity android:name=".SettingsActivity" />
+        <activity android:name=".SettingsActivity"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".CreateANewRecipe"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".Register"
-            android:exported="true" />
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".ForgotPassword"
             android:exported="true" />

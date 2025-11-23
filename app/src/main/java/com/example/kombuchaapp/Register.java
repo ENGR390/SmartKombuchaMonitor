@@ -6,10 +6,13 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.text.method.HideReturnsTransformationMethod;
+import android.text.method.PasswordTransformationMethod;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -32,6 +35,7 @@ public class Register extends AppCompatActivity {
     EditText mFullName, mEmail, mPassword;
     Button mRegisterBtn;
     TextView mLoginBtn;
+    CheckBox cbShowPassword;
     FirebaseAuth fAuth;
     ProgressBar progressBar;
     FirebaseFirestore fStore;
@@ -48,9 +52,20 @@ public class Register extends AppCompatActivity {
         mRegisterBtn = findViewById(R.id.registerBtn);
         mLoginBtn = findViewById(R.id.createText);
         progressBar = findViewById(R.id.progressBar);
+        cbShowPassword = findViewById(R.id.cb_show_password);
 
         fAuth = FirebaseAuth.getInstance();
         fStore = FirebaseFirestore.getInstance();
+
+        // Password visibility toggle
+        cbShowPassword.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                mPassword.setTransformationMethod(HideReturnsTransformationMethod.getInstance());
+            } else {
+                mPassword.setTransformationMethod(PasswordTransformationMethod.getInstance());
+            }
+            mPassword.setSelection(mPassword.getText().length());
+        });
 
         // Check if already logged in
         if(fAuth.getCurrentUser() != null) {
