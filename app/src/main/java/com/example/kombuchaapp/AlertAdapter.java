@@ -103,6 +103,19 @@ public final class AlertAdapter {
         lastCriticalPushAtMs = 0;
     }
 
+    /**
+     * Cleans up handler callbacks to prevent memory leaks.
+     * Call this from Activity.onDestroy() or onStop().
+     */
+    public static void cleanup() {
+        if (hideBannerRunnable != null) {
+            bannerHandler.removeCallbacks(hideBannerRunnable);
+            hideBannerRunnable = null;
+        }
+        // Remove all callbacks and messages to prevent leaks
+        bannerHandler.removeCallbacksAndMessages(null);
+    }
+
     private static void tintBadge(View v, int toColor) {
         ColorStateList currentTint = ViewCompat.getBackgroundTintList(v);
         Integer from = (currentTint != null) ? currentTint.getDefaultColor() : null;
