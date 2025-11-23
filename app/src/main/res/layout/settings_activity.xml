@@ -133,7 +133,31 @@
                     android:backgroundTint="#FF8C00"
                     tools:ignore="HardcodedText" />
 
-                <!-- Password -->
+                <!-- Current Password (required for password change) -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Current Password"
+                    android:textSize="14sp"
+                    android:textColor="#8B4513"
+                    android:layout_marginTop="12dp" />
+
+                <EditText
+                    android:id="@+id/et_current_password"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:paddingVertical="12dp"
+                    android:hint="Enter current password"
+                    android:inputType="textPassword"
+                    android:autofillHints="password"
+                    android:importantForAutofill="yes"
+                    android:textColor="#8B4513"
+                    android:textColorHint="#CD853F"
+                    android:backgroundTint="#FF8C00"
+                    tools:ignore="HardcodedText" />
+
+                <!-- New Password -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -161,7 +185,7 @@
                     android:id="@+id/cb_show_password"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Show password"
+                    android:text="Show passwords"
                     android:textColor="#8B4513"
                     android:layout_marginTop="6dp" />
 
