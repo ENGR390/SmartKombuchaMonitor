@@ -6,9 +6,12 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.text.method.HideReturnsTransformationMethod;
+import android.text.method.PasswordTransformationMethod;
 
 import android.graphics.Color;
 import android.graphics.RenderEffect;
@@ -32,6 +35,7 @@ public class Login extends AppCompatActivity {
     EditText mEmail, mPassword;
     Button mLoginBtn;
     TextView mCreateBtn, forgotTextLink;
+    CheckBox cbShowPassword;
     FirebaseAuth fAuth;
 
     private static final long SPLASH_DURATION_MS = 650L;
@@ -47,8 +51,19 @@ public class Login extends AppCompatActivity {
         mLoginBtn = findViewById(R.id.loginBtn);
         mCreateBtn = findViewById(R.id.createText);
         forgotTextLink = findViewById(R.id.forgotPassword);
+        cbShowPassword = findViewById(R.id.cb_show_password);
 
         fAuth = FirebaseAuth.getInstance();
+
+        // Password visibility toggle
+        cbShowPassword.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                mPassword.setTransformationMethod(HideReturnsTransformationMethod.getInstance());
+            } else {
+                mPassword.setTransformationMethod(PasswordTransformationMethod.getInstance());
+            }
+            mPassword.setSelection(mPassword.getText().length());
+        });
 
         // Ask notification permission once
         ensurePostNotificationsPermission();

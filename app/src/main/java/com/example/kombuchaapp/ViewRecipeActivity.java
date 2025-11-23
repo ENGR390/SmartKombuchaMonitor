@@ -2,12 +2,17 @@ package com.example.kombuchaapp;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.Html;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageButton;
+import android.widget.PopupMenu;
 import android.widget.ProgressBar;
+import android.widget.RatingBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -63,10 +68,15 @@ public class ViewRecipeActivity extends AppCompatActivity {
             minPhTextView, maxPhTextView, pHTypeTextView;
     private View liveTempContainer, livePhContainer;
     private Button btnEdit, btnStartBrewing, btnMarkCompleted, btnPauseBrewing,
-            btnResumeBrewing, btnBackToDraft, btnRebrew;
+            btnResumeBrewing, btnBackToDraft, btnRebrew, btnAddReview;
+    private ImageButton btnSettings;
     private ProgressBar progressBar;
-    private View notesSection, flavorSection;
+    private View notesSection, flavorSection, reviewSection;
     private LineChart temperatureChart, phChart;
+
+    // Review UI Components
+    private RatingBar ratingDisplay;
+    private TextView tvReviewNotes, tvNoReview;
 
     // Repository
     private RecipeRepository recipeRepository;
@@ -82,9 +92,13 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private ListenerRegistration phNotifyListener;
 
     private boolean hasHarvestNotified = false;
-    
+
     // Store current readings for re-rendering when unit changes
     private List<SensorReadings> currentTempReadings = new ArrayList<>();
+
+    // Store latest live readings for unit conversion updates
+    private float latestLiveTempC = Float.NaN;
+    private float latestLivePh = Float.NaN;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -115,6 +129,9 @@ public class ViewRecipeActivity extends AppCompatActivity {
         // Initialize views
         initViews();
 
+        // Setup settings menu button
+        btnSettings.setOnClickListener(this::showSettingsMenu);
+
         // Load recipe data
         loadRecipe();
 
@@ -136,6 +153,13 @@ public class ViewRecipeActivity extends AppCompatActivity {
         if (livePhContainer != null) {
             livePhContainer.setOnClickListener(v -> showPhLegend());
         }
+        // Setup back press handler
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                FizzTransitionUtil.play(ViewRecipeActivity.this, () -> finish());
+            }
+        });
     }
 
     private void initViews() {
@@ -161,9 +185,16 @@ public class ViewRecipeActivity extends AppCompatActivity {
         btnResumeBrewing = findViewById(R.id.btn_resume_brewing);
         btnBackToDraft = findViewById(R.id.btn_back_to_draft);
         btnRebrew = findViewById(R.id.btn_rebrew);
+        btnAddReview = findViewById(R.id.btn_add_review);
+        btnSettings = findViewById(R.id.btn_settings);
 
         notesSection = findViewById(R.id.notes_section);
         flavorSection = findViewById(R.id.flavor_section);
+        reviewSection = findViewById(R.id.review_section);
+
+        ratingDisplay = findViewById(R.id.rating_display);
+        tvReviewNotes = findViewById(R.id.tv_review_notes);
+        tvNoReview = findViewById(R.id.tv_no_review);
 
         temperatureChart = findViewById(R.id.temperature_chart);
         phChart = findViewById(R.id.ph_chart);
@@ -213,24 +244,20 @@ public class ViewRecipeActivity extends AppCompatActivity {
             @Override
             public void onSuccess(UserSettings settings) {
                 String newUnit = settings.getTemperatureUnit();
-                
+
                 // Check if unit changed
                 boolean unitChanged = !newUnit.equals(temperatureUnit);
                 temperatureUnit = newUnit;
-                
+
                 runOnUiThread(() -> {
                     // If unit changed and we have chart data, re-render with new unit
                     if (unitChanged && !currentTempReadings.isEmpty()) {
                         updateTemperatureChart(currentTempReadings);
                     }
-                    
-                    // Also update live temperature display if visible
-                    if (unitChanged && liveTempContainer != null && 
-                        liveTempContainer.getVisibility() == View.VISIBLE && 
-                        !currentTempReadings.isEmpty()) {
-                        // Get the most recent temperature
-                        SensorReadings latestReading = currentTempReadings.get(currentTempReadings.size() - 1);
-                        updateLiveTemperature(latestReading.getTemperature_c());
+
+                    // Also update live temperature display if we have a latest reading
+                    if (unitChanged && !Float.isNaN(latestLiveTempC)) {
+                        updateLiveTemperature(latestLiveTempC);
                     }
                 });
             }
@@ -259,6 +286,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
      * Update live temperature display
      */
     private void updateLiveTemperature(float tempC) {
+        latestLiveTempC = tempC; // Store for unit conversion updates
         runOnUiThread(() -> {
             if (liveTempContainer != null && tvLiveTemperature != null) {
                 liveTempContainer.setVisibility(View.VISIBLE);
@@ -275,7 +303,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
             if (livePhContainer != null && tvLivePh != null && tvFermentationStage != null) {
                 livePhContainer.setVisibility(View.VISIBLE);
                 tvLivePh.setText(String.format("%.2f", ph));
-                
+
                 PhFermentationStage.Result result = PhFermentationStage.evaluate(ph);
                 tvLivePh.setTextColor(result.color);
                 tvFermentationStage.setText(result.title);
@@ -290,22 +318,27 @@ public class ViewRecipeActivity extends AppCompatActivity {
     private void showPhLegend() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Fermentation Stages");
-        
+
         String message = "<b>🔵 Initial (pH 4.5+)</b><br>" +
                 "Fermentation just started. Sweet tea taste.<br><br>" +
-                
+
                 "<b>🟠 Active (pH 3.5-4.5)</b><br>" +
                 "Fermentation in progress. Becoming tangy.<br><br>" +
-                
+
                 "<b>🟢 Optimal (pH 2.5-3.5)</b><br>" +
                 "Perfect for harvesting! Balanced flavor.<br><br>" +
-                
+
                 "<b>🔴 Taste Test (pH &lt;2.5)</b><br>" +
                 "Very tart and acidic. Taste before bottling.";
-        
-        builder.setMessage(Html.fromHtml(message, Html.FROM_HTML_MODE_LEGACY));
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            builder.setMessage(Html.fromHtml(message, Html.FROM_HTML_MODE_LEGACY));
+        } else {
+            builder.setMessage(Html.fromHtml(message));
+        }
+
         builder.setPositiveButton("Got it!", null);
-        
+
         AlertDialog dialog = builder.create();
         dialog.show();
     }
@@ -321,6 +354,13 @@ public class ViewRecipeActivity extends AppCompatActivity {
                     currentRecipe = recipe;
                     displayRecipe(recipe);
                     displayPhRange(recipe);
+                    displayReview(recipe);
+
+                    // Start live reading listeners if brewing
+                    if ("brewing".equalsIgnoreCase(recipe.getStatus())) {
+                        startReadingListener();
+                        startPhListener();
+                    }
                 });
             }
 
@@ -382,6 +422,48 @@ public class ViewRecipeActivity extends AppCompatActivity {
         }
     }
 
+    private void displayReview(Recipe recipe) {
+        String status = recipe.getStatus() != null ? recipe.getStatus() : "draft";
+
+        // Only show review section for completed brews
+        if ("completed".equalsIgnoreCase(status)) {
+            reviewSection.setVisibility(View.VISIBLE);
+
+            Float rating = recipe.getRating();
+            String reviewNotes = recipe.getReviewNotes();
+
+            if (rating != null && rating > 0) {
+                // Has review
+                ratingDisplay.setVisibility(View.VISIBLE);
+                tvReviewNotes.setVisibility(View.VISIBLE);
+                tvNoReview.setVisibility(View.GONE);
+
+                ratingDisplay.setRating(rating);
+                ratingDisplay.setIsIndicator(true); // Make it read-only
+
+                if (reviewNotes != null && !reviewNotes.trim().isEmpty()) {
+                    tvReviewNotes.setText(reviewNotes);
+                } else {
+                    tvReviewNotes.setText("No additional notes");
+                }
+
+                btnAddReview.setText("Edit Review");
+            } else {
+                // No review yet
+                ratingDisplay.setVisibility(View.GONE);
+                tvReviewNotes.setVisibility(View.GONE);
+                tvNoReview.setVisibility(View.VISIBLE);
+
+                btnAddReview.setText("Add Review");
+            }
+
+            btnAddReview.setVisibility(View.VISIBLE);
+        } else {
+            reviewSection.setVisibility(View.GONE);
+            btnAddReview.setVisibility(View.GONE);
+        }
+    }
+
     private void updateButtonsForStatus(String status) {
         // Hide all action buttons first
         btnStartBrewing.setVisibility(View.GONE);
@@ -427,6 +509,174 @@ public class ViewRecipeActivity extends AppCompatActivity {
         btnResumeBrewing.setOnClickListener(v -> resumeBrewing());
         btnBackToDraft.setOnClickListener(v -> confirmBackToDraft());
         btnRebrew.setOnClickListener(v -> confirmRebrew());
+        btnAddReview.setOnClickListener(v -> showReviewDialog());
+    }
+
+    private void showSettingsMenu(View view) {
+        PopupMenu popup = new PopupMenu(this, view);
+        popup.getMenuInflater().inflate(R.menu.settings_menu, popup.getMenu());
+
+        popup.setOnMenuItemClickListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == R.id.menu_settings) {
+                // Navigate to settings
+                Intent intent = new Intent(ViewRecipeActivity.this, SettingsActivity.class);
+                FizzTransitionUtil.play(ViewRecipeActivity.this, () -> startActivity(intent));
+                return true;
+            } else if (itemId == R.id.menu_insights) {
+                // Navigate to insights
+                Intent intent = new Intent(ViewRecipeActivity.this, DataInsightsActivity.class);
+                FizzTransitionUtil.play(ViewRecipeActivity.this, () -> startActivity(intent));
+                return true;
+            } else if (itemId == R.id.menu_logout) {
+                // Logout
+                logout();
+                return true;
+            }
+            return false;
+        });
+
+        popup.show();
+    }
+
+    private void logout() {
+        FirebaseAuth.getInstance().signOut();
+        Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
+        Intent intent = new Intent(ViewRecipeActivity.this, Login.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    private void showReviewDialog() {
+        // Create custom dialog view
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_review, null);
+
+        RatingBar ratingBar = dialogView.findViewById(R.id.rating_bar);
+        EditText etReviewNotes = dialogView.findViewById(R.id.et_review_notes);
+
+        // Pre-fill if review exists
+        if (currentRecipe.getRating() != null && currentRecipe.getRating() > 0) {
+            ratingBar.setRating(currentRecipe.getRating());
+        }
+        if (currentRecipe.getReviewNotes() != null) {
+            etReviewNotes.setText(currentRecipe.getReviewNotes());
+        }
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Rate Your Brew")
+                .setView(dialogView)
+                .setPositiveButton("Save", null)
+                .setNegativeButton("Cancel", null)
+                .setNeutralButton("Delete Review", null)
+                .create();
+
+        dialog.setOnShowListener(dialogInterface -> {
+            Button saveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            Button deleteButton = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+
+            // Only show delete button if review exists
+            if (currentRecipe.getRating() == null || currentRecipe.getRating() == 0) {
+                deleteButton.setVisibility(View.GONE);
+            }
+
+            saveButton.setOnClickListener(v -> {
+                float rating = ratingBar.getRating();
+                String notes = etReviewNotes.getText().toString().trim();
+
+                if (rating == 0) {
+                    Toast.makeText(this, "Please add a rating", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                saveReview(rating, notes);
+                dialog.dismiss();
+            });
+
+            deleteButton.setOnClickListener(v -> {
+                new AlertDialog.Builder(this)
+                        .setTitle("Delete Review")
+                        .setMessage("Are you sure you want to delete this review?")
+                        .setPositiveButton("Delete", (d, w) -> {
+                            deleteReview();
+                            dialog.dismiss();
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            });
+        });
+
+        dialog.show();
+    }
+
+    private void saveReview(float rating, String notes) {
+        showLoading(true);
+
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            showLoading(false);
+            Toast.makeText(this, "Error: User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("rating", rating);
+        updates.put("reviewNotes", notes);
+        updates.put("reviewDate", Timestamp.now());
+
+        db.collection("users").document(user.getUid())
+                .collection("Recipes").document(recipeId)
+                .update(updates)
+                .addOnSuccessListener(aVoid -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(this, "Review saved!", Toast.LENGTH_SHORT).show();
+                        loadRecipe(); // Reload to show updated review
+                    });
+                })
+                .addOnFailureListener(e -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(this, "Failed to save review: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                        Log.e(TAG, "Failed to save review", e);
+                    });
+                });
+    }
+
+    private void deleteReview() {
+        showLoading(true);
+
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
+            showLoading(false);
+            Toast.makeText(this, "Error: User not logged in", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("rating", null);
+        updates.put("reviewNotes", null);
+        updates.put("reviewDate", null);
+
+        db.collection("users").document(user.getUid())
+                .collection("Recipes").document(recipeId)
+                .update(updates)
+                .addOnSuccessListener(aVoid -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(this, "Review deleted", Toast.LENGTH_SHORT).show();
+                        loadRecipe(); // Reload to update UI
+                    });
+                })
+                .addOnFailureListener(e -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        Toast.makeText(this, "Failed to delete review: " + e.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                        Log.e(TAG, "Failed to delete review", e);
+                    });
+                });
     }
 
     private void startBrewingProcess() {
@@ -450,6 +700,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
                             return; // Stop here
                         }
                     }
+
                     // If the document doesn't exist, or no recipe is active, proceed to start brewing.
                     runOnUiThread(() -> updateRecipeStatus("brewing"));
 
@@ -727,6 +978,10 @@ public class ViewRecipeActivity extends AppCompatActivity {
                             .addOnSuccessListener(aVoid -> {
                                 runOnUiThread(() -> {
                                     addRecipeForSensors();
+                                    // Start listeners for live readings
+                                    startReadingListener();
+                                    startPhListener();
+                                    hasHarvestNotified = false;
                                     showLoading(false);
                                     Toast.makeText(ViewRecipeActivity.this,
                                             "Brewing restarted!",
@@ -999,7 +1254,10 @@ public class ViewRecipeActivity extends AppCompatActivity {
         temperatureChart.setTouchEnabled(true);
         temperatureChart.setDragEnabled(true);
         temperatureChart.setScaleEnabled(true);
+        temperatureChart.setScaleXEnabled(true);
+        temperatureChart.setScaleYEnabled(true);
         temperatureChart.setPinchZoom(true);
+        temperatureChart.setDoubleTapToZoomEnabled(true);
 
         // Customize Axes
         XAxis xAxis = temperatureChart.getXAxis();
@@ -1071,7 +1329,7 @@ public class ViewRecipeActivity extends AppCompatActivity {
 
                     // Store readings for unit conversion
                     currentTempReadings = new ArrayList<>(readings);
-                    
+
                     updateTemperatureChart(readings);
                 });
     }
@@ -1096,13 +1354,13 @@ public class ViewRecipeActivity extends AppCompatActivity {
         for (int i = 0; i < readings.size(); i++) {
             SensorReadings reading = readings.get(i);
             float tempC = reading.getTemperature_c();
-            
+
             // Convert temperature based on user preference
             float displayTemp = tempC;
             if ("fahrenheit".equalsIgnoreCase(temperatureUnit)) {
                 displayTemp = (tempC * 9/5) + 32;
             }
-            
+
             tempEntries.add(new Entry(i, displayTemp));
 
             // Track min/max for Y-axis
@@ -1209,7 +1467,10 @@ public class ViewRecipeActivity extends AppCompatActivity {
         phChart.setTouchEnabled(true);
         phChart.setDragEnabled(true);
         phChart.setScaleEnabled(true);
+        phChart.setScaleXEnabled(true);
+        phChart.setScaleYEnabled(true);
         phChart.setPinchZoom(true);
+        phChart.setDoubleTapToZoomEnabled(true);
 
         // Customize Axes
         XAxis xAxis = phChart.getXAxis();
@@ -1403,19 +1664,14 @@ public class ViewRecipeActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        
+
         // Reload user settings FIRST (in case they changed temperature unit in Settings)
         // This will automatically refresh the chart if the unit changed
         loadUserSettings();
-        
+
         // Then reload recipe when returning from edit
         if (recipeId != null) {
             loadRecipe();
         }
-    }
-    
-    @Override
-    public void onBackPressed() {
-        FizzTransitionUtil.play(this, this::finish);
     }
 }

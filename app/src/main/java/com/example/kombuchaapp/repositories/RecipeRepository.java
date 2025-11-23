@@ -8,6 +8,7 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
 
@@ -73,6 +74,8 @@ public class RecipeRepository {
         recipeData.put("notes", recipe.getNotes());
         recipeData.put("minPh", recipe.getMinPh());
         recipeData.put("maxPh", recipe.getMaxPh());
+        recipeData.put("published",recipe.getPublished());
+        recipeData.put("likes", recipe.getLikes());
 
         // Add to Firestore (auto-generates document ID)
         recipesRef.add(recipeData)
@@ -88,7 +91,7 @@ public class RecipeRepository {
                 });
     }
 
-//recipe for current user
+    //recipe for current user
     public void getAllRecipes(OnRecipesLoadedListener listener) {
         CollectionReference recipesRef = getRecipesCollection();
 
@@ -246,12 +249,12 @@ public class RecipeRepository {
         }
 
         String userId = user.getUid();
-        
+
         // Track completion of both subcollection deletions
         final boolean[] tempComplete = {false};
         final boolean[] phComplete = {false};
         final boolean[] hasError = {false};
-        
+
         // Delete temperature readings
         fStore.collection("users")
                 .document(userId)
@@ -267,15 +270,15 @@ public class RecipeRepository {
                     } else {
                         int totalDocs = tempSnapshots.size();
                         final int[] deletedCount = {0};
-                        
+
                         Log.d(TAG, "Deleting " + totalDocs + " temperature readings");
-                        
+
                         for (DocumentSnapshot doc : tempSnapshots.getDocuments()) {
                             doc.getReference().delete()
                                     .addOnSuccessListener(aVoid -> {
                                         deletedCount[0]++;
                                         Log.d(TAG, "Deleted temp reading " + deletedCount[0] + "/" + totalDocs);
-                                        
+
                                         if (deletedCount[0] == totalDocs) {
                                             tempComplete[0] = true;
                                             Log.d(TAG, "All temperature readings deleted");
@@ -286,7 +289,7 @@ public class RecipeRepository {
                                         Log.e(TAG, "Failed to delete temp reading", e);
                                         hasError[0] = true;
                                         deletedCount[0]++;
-                                        
+
                                         if (deletedCount[0] == totalDocs) {
                                             tempComplete[0] = true;
                                             checkSubcollectionDeletionComplete(tempComplete, phComplete, hasError, listener);
@@ -317,15 +320,15 @@ public class RecipeRepository {
                     } else {
                         int totalDocs = phSnapshots.size();
                         final int[] deletedCount = {0};
-                        
+
                         Log.d(TAG, "Deleting " + totalDocs + " pH readings");
-                        
+
                         for (DocumentSnapshot doc : phSnapshots.getDocuments()) {
                             doc.getReference().delete()
                                     .addOnSuccessListener(aVoid -> {
                                         deletedCount[0]++;
                                         Log.d(TAG, "Deleted pH reading " + deletedCount[0] + "/" + totalDocs);
-                                        
+
                                         if (deletedCount[0] == totalDocs) {
                                             phComplete[0] = true;
                                             Log.d(TAG, "All pH readings deleted");
@@ -336,7 +339,7 @@ public class RecipeRepository {
                                         Log.e(TAG, "Failed to delete pH reading", e);
                                         hasError[0] = true;
                                         deletedCount[0]++;
-                                        
+
                                         if (deletedCount[0] == totalDocs) {
                                             phComplete[0] = true;
                                             checkSubcollectionDeletionComplete(tempComplete, phComplete, hasError, listener);
@@ -353,8 +356,8 @@ public class RecipeRepository {
                 });
     }
 
-    private void checkSubcollectionDeletionComplete(boolean[] tempComplete, boolean[] phComplete, 
-                                                     boolean[] hasError, OnUpdateListener listener) {
+    private void checkSubcollectionDeletionComplete(boolean[] tempComplete, boolean[] phComplete,
+                                                    boolean[] hasError, OnUpdateListener listener) {
         // Only proceed when BOTH subcollections are completely deleted
         if (tempComplete[0] && phComplete[0]) {
             if (hasError[0]) {
@@ -367,13 +370,120 @@ public class RecipeRepository {
         }
     }
 
+    public void updateRecipePublished(String recipeId, boolean published, OnUpdateListener listener) {
+        CollectionReference recipesRef = getRecipesCollection();
+
+        if (recipesRef == null) {
+            listener.onFailure("User not logged in");
+            return;
+        }
+
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("published", published);
+
+        recipesRef.document(recipeId)
+                .update(updates)
+                .addOnSuccessListener(aVoid -> {
+                    listener.onSuccess(published ? "Recipe published" : "Recipe unpublished");
+                })
+                .addOnFailureListener(e -> listener.onFailure(e.getMessage()));
+    }
+
+    public void getAllPublishedRecipes(OnRecipesLoadedListener listener) {
+        FirebaseFirestore fStore = FirebaseFirestore.getInstance();
+
+        fStore.collectionGroup("Recipes")
+                .whereEqualTo("published", true)
+                .orderBy("createdDate", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    List<Recipe> recipes = new ArrayList<>();
+                    for (DocumentSnapshot doc : querySnapshot.getDocuments()) {
+                        Recipe recipe = parseRecipe(doc);
+                        if (recipe != null) {
+                            recipes.add(recipe);
+                        }
+                    }
+                    listener.onSuccess(recipes);
+                })
+                .addOnFailureListener(e -> listener.onFailure(e.getMessage()));
+    }
+
+    public void incrementLikes(String recipeId, String ownerUserId, OnUpdateListener listener) {
+
+        FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(ownerUserId)
+                .collection("Recipes")
+                .document(recipeId)
+                .update("likes", FieldValue.increment(1))
+                .addOnSuccessListener(aVoid -> listener.onSuccess("Liked!"))
+                .addOnFailureListener(e -> listener.onFailure(e.getMessage()));
+    }
+
+    public void toggleLike(String recipeId, String ownerUserId, String currentUserId, OnUpdateListener listener) {
+        DocumentReference ref = FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(ownerUserId)
+                .collection("Recipes")
+                .document(recipeId);
+
+        FirebaseFirestore.getInstance().runTransaction(transaction -> {
+            DocumentSnapshot snapshot = transaction.get(ref);
+
+            List<String> likedBy = (List<String>) snapshot.get("likedBy");
+            Long likes = snapshot.getLong("likes");
+
+            if (likedBy == null) likedBy = new ArrayList<>();
+            if (likes == null) likes = 0L;
+
+            if (likedBy.contains(currentUserId)) {
+                // Unlike
+                likedBy.remove(currentUserId);
+                likes -= 1;
+            } else {
+                // Like
+                likedBy.add(currentUserId);
+                likes += 1;
+            }
+
+            transaction.update(ref, "likedBy", likedBy);
+            transaction.update(ref, "likes", likes);
+
+            return null;
+        }).addOnSuccessListener(aVoid -> {
+            listener.onSuccess("Updated");
+        }).addOnFailureListener(e -> {
+            listener.onFailure(e.getMessage());
+        });
+    }
+
     // Parse Firestore document into Recipe object
 // Replace the parseRecipe method in RecipeRepository.java with this:
 
     private Recipe parseRecipe(DocumentSnapshot doc) {
         Recipe recipe = new Recipe();
         recipe.setRecipeId(doc.getId());
-        recipe.setUserId(doc.getString("userId"));
+
+        // Try to get userId from document field first
+        String userId = doc.getString("userId");
+        Log.d(TAG, "parseRecipe - userId from field: " + userId);
+
+        // If userId is null, extract from document path: users/{userId}/Recipes/{recipeId}
+        if (userId == null || userId.isEmpty()) {
+            String path = doc.getReference().getPath();
+            Log.d(TAG, "parseRecipe - document path: " + path);
+            // Path format: users/{userId}/Recipes/{recipeId}
+            String[] parts = path.split("/");
+            Log.d(TAG, "parseRecipe - path parts length: " + parts.length);
+            if (parts.length >= 2 && "users".equals(parts[0])) {
+                userId = parts[1];
+                Log.d(TAG, "parseRecipe - extracted userId from path: " + userId);
+            }
+        }
+
+        recipe.setUserId(userId);
+        Log.d(TAG, "parseRecipe - final userId set: " + userId);
         recipe.setRecipeName(doc.getString("recipeName"));
         recipe.setTeaLeaf(doc.getString("teaLeaf"));
         recipe.setWater(doc.getString("water"));
@@ -414,6 +524,17 @@ public class RecipeRepository {
             recipe.setMinPh(0.0);
             recipe.setMaxPh(0.0);
         }
+        recipe.setPublished(doc.getBoolean("published"));
+        Long likesValue = doc.getLong("likes");
+        recipe.setLikes(likesValue != null ? likesValue.intValue() : 0);
+        List<String> likedByList = (List<String>) doc.get("likedBy");
+        recipe.setLikedBy(likedByList != null ? likedByList : new ArrayList<>());
+
+        // Parse review fields
+        Double ratingValue = doc.getDouble("rating");
+        recipe.setRating(ratingValue != null ? ratingValue.floatValue() : null);
+        recipe.setReviewNotes(doc.getString("reviewNotes"));
+        recipe.setReviewDate(doc.getTimestamp("reviewDate"));
 
         return recipe;
     }
