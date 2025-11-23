@@ -9,14 +9,17 @@ import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
+import android.widget.TextView;
 
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.core.view.ViewCompat;
 
 import com.example.kombuchaapp.NotificationHelper;
-import com.google.android.material.snackbar.Snackbar;
 
 public final class AlertAdapter {
     private AlertAdapter() {}
@@ -28,6 +31,10 @@ public final class AlertAdapter {
     private static long lastCriticalPushAtMs = 0;
     private static final long CRITICAL_PUSH_COOLDOWN = 5 * 60_000;
 
+    private static final long BANNER_DISPLAY_DURATION = 5000; // 5 seconds
+    private static Handler bannerHandler = new Handler(Looper.getMainLooper());
+    private static Runnable hideBannerRunnable = null;
+
     public static void handleNewReading(Activity activity, String recipeId, float tempF, View statusPill) {
         TemperatureAlert.Result r = TemperatureAlert.evaluateF(tempF);
         View root = activity.findViewById(android.R.id.content);
@@ -35,10 +42,8 @@ public final class AlertAdapter {
         if (r.level != TemperatureAlert.Level.OPTIMAL
                 && r.level != TemperatureAlert.Level.UNKNOWN
                 && r.level != lastLevelShown) {
-            Snackbar sb = Snackbar.make(root, r.title + " • " + r.message, Snackbar.LENGTH_LONG);
-            sb.setBackgroundTint(r.color);
-            sb.setTextMaxLines(3);
-            sb.show();
+            // Show alert banner at top instead of Snackbar at bottom
+            showAlertBanner(activity, r.title + " • " + r.message, r.color);
             lastLevelShown = r.level;
         }
 
@@ -182,5 +187,65 @@ public final class AlertAdapter {
                 0f, -18f, 18f, -12f, 12f, -6f, 6f, 0f);
         oa.setDuration(420);
         oa.start();
+    }
+
+    /**
+     * Shows an alert banner at the top of the screen (under the toolbar)
+     * instead of a Snackbar at the bottom.
+     */
+    private static void showAlertBanner(Activity activity, String message, int backgroundColor) {
+        View alertBanner = activity.findViewById(R.id.alert_banner);
+        TextView alertText = activity.findViewById(R.id.alert_banner_text);
+        ImageButton dismissButton = activity.findViewById(R.id.alert_banner_dismiss);
+
+        if (alertBanner == null || alertText == null) {
+            return;
+        }
+
+        // Cancel any pending hide operation
+        if (hideBannerRunnable != null) {
+            bannerHandler.removeCallbacks(hideBannerRunnable);
+        }
+
+        // Set the message and background color
+        alertText.setText(message);
+        alertBanner.setBackgroundColor(backgroundColor);
+
+        // Show the banner with animation
+        alertBanner.setVisibility(View.VISIBLE);
+        alertBanner.setAlpha(0f);
+        alertBanner.animate()
+                .alpha(1f)
+                .setDuration(200)
+                .start();
+
+        // Setup dismiss button
+        if (dismissButton != null) {
+            dismissButton.setOnClickListener(v -> hideAlertBanner(alertBanner));
+        }
+
+        // Auto-hide after duration
+        hideBannerRunnable = () -> hideAlertBanner(alertBanner);
+        bannerHandler.postDelayed(hideBannerRunnable, BANNER_DISPLAY_DURATION);
+    }
+
+    /**
+     * Hides the alert banner with animation.
+     */
+    private static void hideAlertBanner(View alertBanner) {
+        if (alertBanner == null || alertBanner.getVisibility() != View.VISIBLE) {
+            return;
+        }
+
+        alertBanner.animate()
+                .alpha(0f)
+                .setDuration(200)
+                .withEndAction(() -> alertBanner.setVisibility(View.GONE))
+                .start();
+
+        if (hideBannerRunnable != null) {
+            bannerHandler.removeCallbacks(hideBannerRunnable);
+            hideBannerRunnable = null;
+        }
     }
 }
