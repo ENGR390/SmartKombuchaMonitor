@@ -427,10 +427,18 @@ public class RecipeRepository {
         FirebaseFirestore.getInstance().runTransaction(transaction -> {
             DocumentSnapshot snapshot = transaction.get(ref);
 
-            List<String> likedBy = (List<String>) snapshot.get("likedBy");
-            Long likes = snapshot.getLong("likes");
+            // Safe type casting for likedBy list
+            List<String> likedBy = new ArrayList<>();
+            Object likedByObj = snapshot.get("likedBy");
+            if (likedByObj instanceof List<?>) {
+                for (Object item : (List<?>) likedByObj) {
+                    if (item instanceof String) {
+                        likedBy.add((String) item);
+                    }
+                }
+            }
 
-            if (likedBy == null) likedBy = new ArrayList<>();
+            Long likes = snapshot.getLong("likes");
             if (likes == null) likes = 0L;
 
             if (likedBy.contains(currentUserId)) {
@@ -493,8 +501,17 @@ public class RecipeRepository {
         recipe.setPublished(doc.getBoolean("published"));
         Long likesValue = doc.getLong("likes");
         recipe.setLikes(likesValue != null ? likesValue.intValue() : 0);
-        List<String> likedByList = (List<String>) doc.get("likedBy");
-        recipe.setLikedBy(likedByList != null ? likedByList : new ArrayList<>());
+        // Safe type casting for likedBy list
+        List<String> likedByList = new ArrayList<>();
+        Object likedByObj = doc.get("likedBy");
+        if (likedByObj instanceof List<?>) {
+            for (Object item : (List<?>) likedByObj) {
+                if (item instanceof String) {
+                    likedByList.add((String) item);
+                }
+            }
+        }
+        recipe.setLikedBy(likedByList);
 
         // Parse review fields
         Double ratingValue = doc.getDouble("rating");
