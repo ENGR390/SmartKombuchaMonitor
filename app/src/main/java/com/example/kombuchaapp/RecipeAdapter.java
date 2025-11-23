@@ -151,7 +151,7 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                 if (btnPublish != null) btnPublish.setVisibility(View.GONE);
                 // Show Discover-only button
                 if (btnLike != null) btnLike.setVisibility(View.VISIBLE);
-                
+
                 // Show and load publisher username
                 if (recipePublisher != null) {
                     recipePublisher.setVisibility(View.VISIBLE);
@@ -424,17 +424,16 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                     .create();
 
             dialog.show();
-            View dialogView = dialog.getWindow().getDecorView();
-            Haptics.attachToTree(dialogView);
-
+            if (dialog.getWindow() != null) {
+                View dialogView = dialog.getWindow().getDecorView();
+                Haptics.attachToTree(dialogView);
+            }
         }
 
         private void deleteRecipe(Recipe recipe, int position) {
             // First, remove from sensor control to prevent new sensor writes during deletion
-            removeRecipeForSensors(recipe.getRecipeId());
-
-            // Small delay to ensure sensor sees the removal before we start deleting
-            new android.os.Handler().postDelayed(() -> {
+            // Then delete the recipe in the callback to avoid race condition
+            removeRecipeForSensors(recipe.getRecipeId(), () -> {
                 // Now delete the recipe (which will delete all subcollections first)
                 recipeRepository.deleteRecipe(recipe.getRecipeId(), new RecipeRepository.OnUpdateListener() {
                     @Override
@@ -451,10 +450,10 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                         Toast.makeText(context, "Failed to delete: " + error, Toast.LENGTH_SHORT).show();
                     }
                 });
-            }, 500); // 500ms delay to let sensor control update propagate
+            });
         }
 
-        private void removeRecipeForSensors(String deletedRecipeId) {
+        private void removeRecipeForSensors(String deletedRecipeId, Runnable onComplete) {
             // First, read the current active_config document
             db.collection("sensor_control").document("active_config").get()
                     .addOnSuccessListener(documentSnapshot -> {
@@ -472,12 +471,25 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                                         .update(updates)
                                         .addOnSuccessListener(aVoid -> {
                                             Log.d(TAG, "Active recipe cleared from sensor_control because it was deleted.");
+                                            onComplete.run();
                                         })
-                                        .addOnFailureListener(e -> Log.e(TAG, "Failed to clear active recipe from sensor_control", e));
+                                        .addOnFailureListener(e -> {
+                                            Log.e(TAG, "Failed to clear active recipe from sensor_control", e);
+                                            onComplete.run(); // Proceed with delete anyway
+                                        });
+                            } else {
+                                // Recipe is not active, proceed with delete
+                                onComplete.run();
                             }
+                        } else {
+                            // No active config exists, proceed with delete
+                            onComplete.run();
                         }
                     })
-                    .addOnFailureListener(e -> Log.e(TAG, "Failed to check active sensor config", e));
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Failed to check active sensor config", e);
+                        onComplete.run(); // Proceed with delete anyway
+                    });
         }
     }
 }

@@ -101,7 +101,10 @@ public class Login extends AppCompatActivity {
                                     Toast.makeText(Login.this, "Logged in Successfully", Toast.LENGTH_SHORT).show();
                                     showSplashThenGoToMain();
                                 } else {
-                                    Toast.makeText(Login.this, "Error ! " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                                    String errorMsg = task.getException() != null
+                                            ? task.getException().getMessage()
+                                            : "Unknown error";
+                                    Toast.makeText(Login.this, "Error ! " + errorMsg, Toast.LENGTH_SHORT).show();
                                 }
                             }
                         });
