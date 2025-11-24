@@ -22,8 +22,6 @@ import com.example.kombuchaapp.repositories.RecipeRepository;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.text.SimpleDateFormat;
@@ -278,6 +276,14 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
             if (btnLike != null && isDiscoverMode) {
                 String currentUserId = FirebaseAuth.getInstance().getUid();
 
+                // Check if user is logged in
+                if (currentUserId == null) {
+                    btnLike.setOnClickListener(v ->
+                            Toast.makeText(context, "Please log in to like recipes", Toast.LENGTH_SHORT).show()
+                    );
+                    return;
+                }
+
                 // Initialize likedBy list if null
                 if (recipe.getLikedBy() == null) {
                     recipe.setLikedBy(new ArrayList<>());
@@ -289,10 +295,6 @@ public class RecipeAdapter extends RecyclerView.Adapter<RecipeAdapter.RecipeView
                 updateLikeButton(btnLike, isLiked);
 
                 btnLike.setOnClickListener(v -> {
-                    if (currentUserId == null) {
-                        Toast.makeText(context, "Please log in to like recipes", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
 
                     String ownerUserId = recipe.getUserId();
                     String recipeId = recipe.getRecipeId();
