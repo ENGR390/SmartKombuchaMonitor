@@ -12,8 +12,12 @@ import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.Toast;
 
+import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.example.kombuchaapp.models.Recipe;
 import com.example.kombuchaapp.repositories.RecipeRepository;
@@ -41,7 +45,17 @@ public class EditRecipeActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
         setContentView(R.layout.activity_edit_recipe);
+
+        // Handle keyboard (IME) insets for proper scrolling when keyboard appears
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
+            int bottomPadding = Math.max(systemBars.bottom, imeInsets.bottom);
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, bottomPadding);
+            return insets;
+        });
 
         // Get recipe ID from intent
         recipeId = getIntent().getStringExtra("recipe_id");
