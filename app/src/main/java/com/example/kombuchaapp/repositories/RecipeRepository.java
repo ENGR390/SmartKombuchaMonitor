@@ -395,6 +395,7 @@ public class RecipeRepository {
         fStore.collectionGroup("Recipes")
                 .whereEqualTo("published", true)
                 .orderBy("createdDate", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .limit(100) // Limit to prevent quota issues and improve performance
                 .get()
                 .addOnSuccessListener(querySnapshot -> {
                     List<Recipe> recipes = new ArrayList<>();

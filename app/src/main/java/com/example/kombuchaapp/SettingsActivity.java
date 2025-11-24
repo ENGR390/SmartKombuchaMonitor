@@ -11,7 +11,6 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.TextView;
@@ -42,7 +41,6 @@ public class SettingsActivity extends AppCompatActivity {
     private RadioGroup groupUnits;
     private RadioButton optCelsius, optFahrenheit;
     private Toolbar toolbar;
-    private ProgressBar progressBar;
 
     // Backend - Firebase Auth (same as login system)
     private FirebaseAuth fAuth;
@@ -85,8 +83,6 @@ public class SettingsActivity extends AppCompatActivity {
         btnBack.setOnClickListener(v -> FizzTransitionUtil.play(SettingsActivity.this, this::finish)
         );
 
-        progressBar = new ProgressBar(this);
-        progressBar.setVisibility(View.GONE);
         etUsername = findViewById(R.id.et_username);
         etEmail = findViewById(R.id.et_email);
         etCurrentPassword = findViewById(R.id.et_current_password);
