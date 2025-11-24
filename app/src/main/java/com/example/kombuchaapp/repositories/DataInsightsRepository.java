@@ -53,7 +53,7 @@ public class DataInsightsRepository {
                     List<Recipe> recipes = new ArrayList<>();
                     Map<String, Integer> statusCounts = new HashMap<>();
                     Map<String, Integer> teaCounts = new HashMap<>();
-                    
+
                     int completedCount = 0;
                     long totalFermentationTime = 0;
                     int fermentationCount = 0;
@@ -70,7 +70,7 @@ public class DataInsightsRepository {
                         // Count completed
                         if ("completed".equalsIgnoreCase(status)) {
                             completedCount++;
-                            
+
                             // Calculate fermentation time
                             if (recipe.getBrewingStartDate() != null && recipe.getCompletionDate() != null) {
                                 long startMillis = recipe.getBrewingStartDate().toDate().getTime();
@@ -81,10 +81,9 @@ public class DataInsightsRepository {
                             }
                         }
 
-                        // Count tea types
+                        // Count tea types - FIXED: Use full tea name instead of just first word
                         String teaLeaf = recipe.getTeaLeaf();
                         if (teaLeaf != null && !teaLeaf.trim().isEmpty()) {
-                            // Extract tea type (simplified - just take first word)
                             String teaType = extractTeaType(teaLeaf);
                             teaCounts.put(teaType, teaCounts.getOrDefault(teaType, 0) + 1);
                         }
@@ -93,9 +92,9 @@ public class DataInsightsRepository {
                     // Set overall statistics
                     insights.setTotalRecipes(recipes.size());
                     insights.setCompletedBrews(completedCount);
-                    insights.setSuccessRate(recipes.size() > 0 ? 
-                        (completedCount * 100.0f / recipes.size()) : 0);
-                    
+                    insights.setSuccessRate(recipes.size() > 0 ?
+                            (completedCount * 100.0f / recipes.size()) : 0);
+
                     if (fermentationCount > 0) {
                         float avgMillis = (float) totalFermentationTime / fermentationCount;
                         float avgDays = avgMillis / (1000 * 60 * 60 * 24);
@@ -133,7 +132,7 @@ public class DataInsightsRepository {
                 });
     }
 
-    private void findMostSuccessfulRecipe(String userId, DataInsights insights, 
+    private void findMostSuccessfulRecipe(String userId, DataInsights insights,
                                           List<Recipe> recipes, Runnable onComplete) {
         if (recipes.isEmpty()) {
             onComplete.run();
@@ -142,13 +141,13 @@ public class DataInsightsRepository {
 
         // Count which recipe was brewed and completed most often
         Map<String, Integer> recipeCompletionCounts = new HashMap<>();
-        
+
         for (Recipe recipe : recipes) {
-            if ("completed".equalsIgnoreCase(recipe.getStatus()) && 
-                recipe.getRecipeName() != null) {
+            if ("completed".equalsIgnoreCase(recipe.getStatus()) &&
+                    recipe.getRecipeName() != null) {
                 String name = recipe.getRecipeName();
-                recipeCompletionCounts.put(name, 
-                    recipeCompletionCounts.getOrDefault(name, 0) + 1);
+                recipeCompletionCounts.put(name,
+                        recipeCompletionCounts.getOrDefault(name, 0) + 1);
             }
         }
 
@@ -165,7 +164,7 @@ public class DataInsightsRepository {
         onComplete.run();
     }
 
-    private void calculateTemperatureStats(String userId, List<Recipe> recipes, 
+    private void calculateTemperatureStats(String userId, List<Recipe> recipes,
                                            DataInsights insights, Runnable onComplete) {
         if (recipes.isEmpty()) {
             onComplete.run();
@@ -190,13 +189,13 @@ public class DataInsightsRepository {
                             Double tempC = doc.getDouble("temperature_c");
                             if (tempC != null) {
                                 allTemperatures.add(tempC.floatValue());
-                                
+
                                 // Check if in optimal range (23.9-26.7°C which is 75-80°F)
-                                if (tempC >= 23.9f && tempC <= 26.7f && 
-                                    "completed".equalsIgnoreCase(recipe.getStatus())) {
+                                if (tempC >= 23.9f && tempC <= 26.7f &&
+                                        "completed".equalsIgnoreCase(recipe.getStatus())) {
                                     optimalTemperatures.add(tempC.floatValue());
                                 }
-                                
+
                                 // Check if critical/lethal (outside 18.3-29.4°C which is 65-85°F)
                                 if (tempC < 18.3f || tempC > 29.4f) {
                                     alertCount.incrementAndGet();
@@ -230,8 +229,8 @@ public class DataInsightsRepository {
                         }
                     })
                     .addOnFailureListener(e -> {
-                        Log.e(TAG, "Failed to load temperature readings for recipe: " + 
-                            recipe.getRecipeId(), e);
+                        Log.e(TAG, "Failed to load temperature readings for recipe: " +
+                                recipe.getRecipeId(), e);
                         if (pendingReads.decrementAndGet() == 0) {
                             onComplete.run();
                         }
@@ -239,7 +238,7 @@ public class DataInsightsRepository {
         }
     }
 
-    private void calculatePhStats(String userId, List<Recipe> recipes, 
+    private void calculatePhStats(String userId, List<Recipe> recipes,
                                   DataInsights insights, Runnable onComplete) {
         if (recipes.isEmpty()) {
             onComplete.run();
@@ -262,26 +261,26 @@ public class DataInsightsRepository {
                     .addOnSuccessListener(phSnapshots -> {
                         Float lastPh = null;
                         Long firstOptimalTime = null;
-                        Long startTime = recipe.getBrewingStartDate() != null ? 
-                            recipe.getBrewingStartDate().toDate().getTime() : null;
+                        Long startTime = recipe.getBrewingStartDate() != null ?
+                                recipe.getBrewingStartDate().toDate().getTime() : null;
 
                         for (QueryDocumentSnapshot doc : phSnapshots) {
                             Double phVal = doc.getDouble("ph_value");
                             if (phVal != null) {
                                 lastPh = phVal.floatValue();
-                                
+
                                 // Check if in optimal range (2.5-3.5)
                                 if (phVal >= 2.5f && phVal <= 3.5f) {
                                     optimalPhValues.add(phVal.floatValue());
-                                    
+
                                     // Track time to reach optimal pH
                                     if (firstOptimalTime == null && startTime != null) {
                                         String timestamp = doc.getString("timestamp");
                                         if (timestamp != null) {
                                             try {
                                                 // Parse timestamp (format: yyyy-MM-dd HH:mm:ss)
-                                                java.text.SimpleDateFormat sdf = 
-                                                    new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                                                java.text.SimpleDateFormat sdf =
+                                                        new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                                                 java.util.Date date = sdf.parse(timestamp);
                                                 if (date != null) {
                                                     firstOptimalTime = date.getTime();
@@ -340,8 +339,8 @@ public class DataInsightsRepository {
                         }
                     })
                     .addOnFailureListener(e -> {
-                        Log.e(TAG, "Failed to load pH readings for recipe: " + 
-                            recipe.getRecipeId(), e);
+                        Log.e(TAG, "Failed to load pH readings for recipe: " +
+                                recipe.getRecipeId(), e);
                         if (pendingReads.decrementAndGet() == 0) {
                             onComplete.run();
                         }
@@ -350,16 +349,9 @@ public class DataInsightsRepository {
     }
 
     private String extractTeaType(String teaLeaf) {
-        // Simple extraction - take first significant word
-        String[] words = teaLeaf.trim().split("\\s+");
-        for (String word : words) {
-            // Skip common quantity words
-            if (!word.matches("\\d+") && 
-                !word.toLowerCase().matches("tbs|tbsp|cup|cups|grams?|oz")) {
-                return word;
-            }
-        }
-        return words.length > 0 ? words[0] : teaLeaf;
+        // Return the full tea name for better readability in charts
+        // Just trim whitespace
+        return teaLeaf != null ? teaLeaf.trim() : "";
     }
 
     private Recipe parseRecipe(DocumentSnapshot doc) {
