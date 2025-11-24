@@ -93,9 +93,16 @@ public class ForgotPassword extends AppCompatActivity {
         mBackBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(getApplicationContext(), Login.class));
-                finish();
+                FizzTransitionUtil.play(ForgotPassword.this, () -> {
+                    startActivity(new Intent(getApplicationContext(), Login.class));
+                    finish();
+                });
             }
         });
+    }
+
+    @Override
+    public void onBackPressed() {
+        FizzTransitionUtil.play(this, ForgotPassword.super::onBackPressed);
     }
 }
