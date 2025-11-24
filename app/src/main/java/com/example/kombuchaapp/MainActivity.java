@@ -1,10 +1,10 @@
 package com.example.kombuchaapp;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.SpannableString;
 import android.text.style.ForegroundColorSpan;
-import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -41,7 +41,7 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnRecipeDeletedListener {
 
-    private static final String TAG = "MainActivity";
+    private static final String PREFS_NAME = "SettingsCache";
 
     Button newRecipeButton, logoutButton, myBrewButton, discoverButton;
     ImageButton settingsButton;
@@ -404,6 +404,9 @@ public class MainActivity extends AppCompatActivity implements RecipeAdapter.OnR
                     user.delete()
                             .addOnSuccessListener(aVoid2 -> {
                                 dismissDeletionProgress();
+                                // Clear local cached settings
+                                SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+                                prefs.edit().clear().apply();
                                 Toast.makeText(this, "Account deleted successfully", Toast.LENGTH_SHORT).show();
                                 // Navigate to login screen
                                 Intent intent = new Intent(MainActivity.this, Login.class);
