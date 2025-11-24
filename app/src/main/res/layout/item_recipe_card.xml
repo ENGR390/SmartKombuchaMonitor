@@ -60,7 +60,7 @@
                 android:id="@+id/recipe_tea"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Tea: Black Tea"
+                android:text="Tea: Black Tea "
                 android:textSize="14sp"
                 android:textColor="#424242"
                 android:layout_marginBottom="4dp" />
